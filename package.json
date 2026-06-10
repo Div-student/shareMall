@@ -1,0 +1,26 @@
+{
+  "name": "sharemall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "移动端 H5 商城（贡献金 + 数字藏品 + 提现）Monorepo",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev:h5": "pnpm --filter @sharemall/h5 dev",
+    "dev:admin": "pnpm --filter @sharemall/admin dev",
+    "dev:server": "pnpm --filter @sharemall/server start:dev",
+    "build:h5": "pnpm --filter @sharemall/h5 build",
+    "build:admin": "pnpm --filter @sharemall/admin build",
+    "build:server": "pnpm --filter @sharemall/server build",
+    "build:shared": "pnpm --filter @sharemall/shared build",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,vue,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  }
+}

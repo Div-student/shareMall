@@ -1,0 +1,655 @@
+openapi: 3.0.3
+info:
+  title: shareMall API
+  description: 移动端 H5 商城（贡献金 + 数字藏品 + 提现）接口规范
+  version: 1.0.0
+servers:
+  - url: https://api.sharemall.com
+    description: 生产
+  - url: http://localhost:3000
+    description: 本地
+
+tags:
+  - name: Auth
+    description: 认证
+  - name: Product
+    description: 商品与购物
+  - name: Order
+    description: 订单与支付
+  - name: Fund
+    description: 贡献金与打卡
+  - name: NFT
+    description: 数字藏品与二级市场
+  - name: User
+    description: 个人中心与提现
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: success }
+        data: { type: object, nullable: true }
+    Pagination:
+      type: object
+      properties:
+        list: { type: array, items: { type: object } }
+        total: { type: integer, example: 100 }
+    FundAccount:
+      type: object
+      properties:
+        pendingFund: { type: number, format: float, description: 待兑现贡献金 }
+        availableFund: { type: number, format: float, description: 可用贡献金 }
+        withdrawableCash: { type: number, format: float, description: 提现金 }
+        tiers:
+          type: array
+          items:
+            type: object
+            properties:
+              tier: { type: integer, enum: [90, 180, 360, 720] }
+              reached: { type: boolean }
+    OrderPreview:
+      type: object
+      properties:
+        totalAmount: { type: number }
+        fundDeductMax: { type: number, description: 可抵扣上限 }
+        fundDeductAmount: { type: number }
+        freight: { type: number }
+        payAmount: { type: number }
+        accruedFund: { type: number, description: 预计累计待兑现贡献金 }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/sms:
+    post:
+      tags: [Auth]
+      summary: 发送短信验证码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, scene]
+              properties:
+                phone: { type: string }
+                scene: { type: string, enum: [register, login, reset] }
+                captcha: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiResponse' }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: 注册（邀请码 + 短信）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, smsCode, password]
+              properties:
+                phone: { type: string }
+                smsCode: { type: string }
+                password: { type: string }
+                inviteCode: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 账号密码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, password]
+              properties:
+                phone: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: 返回 token 与 userInfo }
+
+  /api/auth/login-sms:
+    post:
+      tags: [Auth]
+      summary: 短信验证码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, smsCode]
+              properties:
+                phone: { type: string }
+                smsCode: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: 重置密码
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, smsCode, newPassword]
+              properties:
+                phone: { type: string }
+                smsCode: { type: string }
+                newPassword: { type: string }
+      responses:
+        '200': { description: OK }
+
+  /api/user/kyc:
+    post:
+      tags: [User]
+      summary: 提交实名认证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [realName, idCardNo]
+              properties:
+                realName: { type: string }
+                idCardNo: { type: string }
+      responses:
+        '200': { description: 返回认证状态 }
+
+  /api/home:
+    get:
+      tags: [Product]
+      summary: 首页聚合
+      security: []
+      responses:
+        '200': { description: 返回 banners/categories/products }
+
+  /api/products:
+    get:
+      tags: [Product]
+      summary: 商品列表
+      security: []
+      parameters:
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: keyword, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [default, price_asc, price_desc, sales] } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        '200': { description: 商品分页（含 price/fundAmount） }
+
+  /api/products/{id}:
+    get:
+      tags: [Product]
+      summary: 商品详情
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 含 images/skus/price/fundRatio/allowFundDeduct }
+
+  /api/products/{id}/order-feed:
+    get:
+      tags: [Product]
+      summary: 实时下单动态（脱敏滚动）
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 动态列表 }
+
+  /api/cart:
+    get:
+      tags: [Product]
+      summary: 购物车列表
+      responses:
+        '200': { description: 含 items/totalAmount/totalFund }
+    post:
+      tags: [Product]
+      summary: 加入购物车
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, quantity]
+              properties:
+                productId: { type: integer }
+                skuId: { type: integer }
+                quantity: { type: integer }
+      responses:
+        '200': { description: OK }
+
+  /api/cart/{id}:
+    put:
+      tags: [Product]
+      summary: 更新购物车数量
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity: { type: integer }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Product]
+      summary: 删除购物车项
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/orders/preview:
+    post:
+      tags: [Order]
+      summary: 下单试算（贡献金抵扣）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, addressId]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      skuId: { type: integer }
+                      quantity: { type: integer }
+                addressId: { type: integer }
+                useFund: { type: boolean }
+                fundAmount: { type: number }
+                couponId: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPreview' }
+
+  /api/orders:
+    get:
+      tags: [Order]
+      summary: 订单列表
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [all, unpaid, paid, shipped, received, completed, aftersale] } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 分页 }
+    post:
+      tags: [Order]
+      summary: 创建订单
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, addressId]
+              properties:
+                items: { type: array, items: { type: object } }
+                addressId: { type: integer }
+                useFund: { type: boolean }
+                fundAmount: { type: number }
+                couponId: { type: integer }
+      responses:
+        '200': { description: 返回 orderNo }
+
+  /api/orders/{id}:
+    get:
+      tags: [Order]
+      summary: 订单详情
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: 含 fundDeductAmount/accruedFund }
+
+  /api/orders/{id}/pay:
+    post:
+      tags: [Order]
+      summary: 发起支付
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel: { type: string, enum: [wechat, alipay] }
+      responses:
+        '200': { description: 返回支付参数 }
+
+  /api/orders/{id}/pay-status:
+    get:
+      tags: [Order]
+      summary: 支付结果查询
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: 返回 status }
+
+  /api/orders/{id}/receive:
+    post:
+      tags: [Order]
+      summary: 确认收货
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/aftersale:
+    post:
+      tags: [Order]
+      summary: 申请售后
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, type, reason]
+              properties:
+                orderId: { type: integer }
+                type: { type: string, enum: [refund_only, return_refund] }
+                reason: { type: string }
+                evidence: { type: array, items: { type: string } }
+      responses:
+        '200': { description: OK }
+
+  /api/fund/account:
+    get:
+      tags: [Fund]
+      summary: 资产总览（三类资产 + 档位）
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FundAccount' }
+
+  /api/fund/records:
+    get:
+      tags: [Fund]
+      summary: 贡献金/提现金流水
+      parameters:
+        - { name: assetType, in: query, schema: { type: string, enum: [pending_fund, available_fund, withdrawable_cash] } }
+        - { name: changeType, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 分页 }
+
+  /api/fund/checkin/start:
+    post:
+      tags: [Fund]
+      summary: 发起打卡（达档位）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tier]
+              properties:
+                tier: { type: integer, enum: [90, 180, 360, 720] }
+      responses:
+        '200': { description: 返回 planId }
+
+  /api/fund/checkin/sign:
+    post:
+      tags: [Fund]
+      summary: 每日打卡签到
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planId]
+              properties:
+                planId: { type: integer }
+      responses:
+        '200': { description: 返回 cashoutAmount/signedDays }
+
+  /api/fund/checkin/{planId}:
+    get:
+      tags: [Fund]
+      summary: 打卡计划详情
+      parameters: [{ name: planId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: 含 dailyAmount/signedDays/voidAmount/status }
+
+  /api/fund/checkin/{planId}/records:
+    get:
+      tags: [Fund]
+      summary: 打卡每日记录
+      parameters: [{ name: planId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: signed/missed 列表 }
+
+  /api/tasks:
+    get:
+      tags: [Fund]
+      summary: 任务列表
+      responses:
+        '200': { description: 含完成状态 }
+
+  /api/tasks/{id}/claim:
+    post:
+      tags: [Fund]
+      summary: 领取任务奖励
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/nft:
+    get:
+      tags: [NFT]
+      summary: 藏品兑换商城列表
+      security: []
+      responses:
+        '200': { description: 含 exchangeFund/stock }
+
+  /api/nft/{id}:
+    get:
+      tags: [NFT]
+      summary: 藏品详情
+      security: []
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/nft/{id}/exchange:
+    post:
+      tags: [NFT]
+      summary: 兑换藏品（扣可用贡献金）
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/nft/mine:
+    get:
+      tags: [NFT]
+      summary: 我的藏品
+      responses:
+        '200': { description: 含 status(holding/listed) }
+
+  /api/nft/listings:
+    post:
+      tags: [NFT]
+      summary: 挂单卖出
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userNftId, price]
+              properties:
+                userNftId: { type: integer }
+                price: { type: number }
+      responses:
+        '200': { description: 返回手续费与预计到账(提现金) }
+
+  /api/nft/listings/{id}:
+    put:
+      tags: [NFT]
+      summary: 改价
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price: { type: number }
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [NFT]
+      summary: 撤单
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/nft/trade:
+    get:
+      tags: [NFT]
+      summary: 二级市场在售列表
+      security: []
+      responses:
+        '200': { description: OK }
+
+  /api/nft/trade/{listingId}/buy:
+    post:
+      tags: [NFT]
+      summary: 购买挂单（成交，卖家所得入提现金）
+      parameters: [{ name: listingId, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+
+  /api/nft/trade/records:
+    get:
+      tags: [NFT]
+      summary: 交易记录
+      responses:
+        '200': { description: 分页 }
+
+  /api/user/profile:
+    get:
+      tags: [User]
+      summary: 个人信息
+      responses:
+        '200': { description: OK }
+    put:
+      tags: [User]
+      summary: 更新个人信息
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname: { type: string }
+                avatar: { type: string }
+                gender: { type: string, enum: [unknown, male, female] }
+                birthday: { type: string, format: date }
+      responses:
+        '200': { description: OK }
+
+  /api/user/address:
+    get:
+      tags: [User]
+      summary: 地址列表
+      responses:
+        '200': { description: OK }
+    post:
+      tags: [User]
+      summary: 新增地址
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiver, phone, province, city, district, detail]
+              properties:
+                receiver: { type: string }
+                phone: { type: string }
+                province: { type: string }
+                city: { type: string }
+                district: { type: string }
+                detail: { type: string }
+                isDefault: { type: boolean }
+      responses:
+        '200': { description: OK }
+
+  /api/user/invite:
+    get:
+      tags: [User]
+      summary: 我的邀请
+      responses:
+        '200': { description: 含 inviteCode/invitedCount/list }
+
+  /api/withdraw/config:
+    get:
+      tags: [User]
+      summary: 提现规则
+      responses:
+        '200': { description: 含 min/max/fee/methods }
+
+  /api/withdraw:
+    post:
+      tags: [User]
+      summary: 申请提现（提现金）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, method, accountInfo]
+              properties:
+                amount: { type: number }
+                method: { type: string, enum: [bank, wechat, alipay] }
+                accountInfo: { type: object }
+      responses:
+        '200': { description: 校验提现金余额与实名后受理 }
+
+  /api/withdraw/records:
+    get:
+      tags: [User]
+      summary: 提现记录
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 分页 }
