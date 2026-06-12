@@ -25,6 +25,12 @@ export interface FundAccount {
   availableFund: number;
   withdrawableCash: number;
   tiers: { tier: FundTier; reached: boolean }[];
+  activePlan?: CheckinPlan | null;
+  rules?: {
+    checkinDays: number;
+    missRule: string;
+    deductLimitRate: number;
+  };
 }
 
 /** 资产流水 */
@@ -47,6 +53,40 @@ export interface ProductListItem {
   /** 预计可获贡献金 */
   fundAmount: number;
   sales: number;
+}
+
+/** 商品 SKU */
+export interface ProductSku {
+  id: number;
+  spec: Record<string, string>;
+  price: number;
+  stock: number;
+  skuImage?: string | null;
+}
+
+/** 商品详情 */
+export interface ProductDetail {
+  id: number;
+  title: string;
+  mainImage: string;
+  images: string[];
+  detailHtml: string;
+  price: number;
+  marketPrice: number | null;
+  fundRatio: number;
+  fundAmount: number;
+  allowFundDeduct: boolean;
+  deductLimitRate: number | null;
+  sales: number;
+  categoryId: number;
+  skus: ProductSku[];
+}
+
+/** 首页聚合 */
+export interface HomeData {
+  banners: { id: number; image: string; link?: string | null }[];
+  categories: { id: number; name: string; icon?: string | null }[];
+  products: ProductListItem[];
 }
 
 /** 下单试算结果 */

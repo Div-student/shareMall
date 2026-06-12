@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { FUND_TIERS } from '@sharemall/shared';
 import { useFundStore } from '@/stores/fund';
 
 const router = useRouter();
 const fundStore = useFundStore();
 const { account } = storeToRefs(fundStore);
 
+const activePlan = computed(() => account.value?.activePlan);
+
 onMounted(() => {
-  // TODO: 接入后端后启用
-  // fundStore.fetchAccount();
+  fundStore.fetchAccount();
 });
+
+function goCheckin() {
+  router.push('/fund/checkin');
+}
 </script>
 
 <template>
@@ -35,11 +39,17 @@ onMounted(() => {
     </div>
 
     <van-cell-group inset title="档位进度">
-      <van-cell v-for="tier in FUND_TIERS" :key="tier" :title="`${tier} 档`" value="未达标" />
+      <van-cell
+        v-for="item in account?.tiers ?? []"
+        :key="item.tier"
+        :title="`${item.tier} 档`"
+        :value="item.reached ? '已达标' : '未达标'"
+        :label="activePlan?.tier === item.tier ? '打卡进行中' : undefined"
+      />
     </van-cell-group>
 
     <van-grid :column-num="2">
-      <van-grid-item icon="completed" text="打卡兑现" @click="router.push('/fund/checkin')" />
+      <van-grid-item icon="completed" text="打卡兑现" @click="goCheckin" />
       <van-grid-item icon="balance-list-o" text="贡献金明细" @click="router.push('/fund/records')" />
     </van-grid>
   </div>

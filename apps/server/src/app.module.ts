@@ -9,6 +9,7 @@ import { FundModule } from './modules/fund/fund.module';
 import { NftModule } from './modules/nft/nft.module';
 import { UserModule } from './modules/user/user.module';
 import { SmsModule } from './common/sms/sms.module';
+import { AuthCommonModule } from './common/auth/auth-common.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -38,6 +39,7 @@ import { HealthController } from './health.controller';
       }),
     }),
     SmsModule,
+    AuthCommonModule,
     AuthModule,
     ProductModule,
     OrderModule,

@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from 'axios';
 import { showToast } from 'vant';
+import { router } from '@/router';
 
 const request: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -26,6 +27,11 @@ request.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
+      const path = router.currentRoute.value.path;
+      if (path !== '/login' && path !== '/register') {
+        router.push({ path: '/login', query: { redirect: path } });
+      }
     }
     showToast(error.response?.data?.message || '网络异常');
     return Promise.reject(error);

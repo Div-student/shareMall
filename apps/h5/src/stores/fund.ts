@@ -1,15 +1,19 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { FundAccount } from '@sharemall/shared';
-import request from '@/api/request';
+import { fetchFundAccount } from '@/api/fund';
 
 export const useFundStore = defineStore('fund', () => {
   const account = ref<FundAccount | null>(null);
 
   async function fetchAccount() {
-    account.value = await request.get<unknown, FundAccount>('/fund/account');
+    account.value = await fetchFundAccount();
     return account.value;
   }
 
-  return { account, fetchAccount };
+  function reset() {
+    account.value = null;
+  }
+
+  return { account, fetchAccount, reset };
 });

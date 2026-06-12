@@ -1,26 +1,61 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
+import { useFundStore } from '@/stores/fund';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
+const userStore = useUserStore();
+const fundStore = useFundStore();
+const { userInfo, isLoggedIn } = storeToRefs(userStore);
+const { account } = storeToRefs(fundStore);
+
+const displayName = computed(() => {
+  if (!isLoggedIn.value) return '未登录';
+  return userInfo.value?.nickname || maskPhone(userInfo.value?.phone);
+});
+
+function maskPhone(phone?: string) {
+  if (!phone || phone.length !== 11) return phone ?? '';
+  return `${phone.slice(0, 3)}****${phone.slice(7)}`;
+}
+
+function goLogin() {
+  router.push({ path: '/login', query: { redirect: '/mine' } });
+}
+
+function logout() {
+  userStore.logout();
+  fundStore.reset();
+}
+
+onMounted(() => {
+  if (isLoggedIn.value) {
+    fundStore.fetchAccount();
+  }
+});
 </script>
 
 <template>
   <div class="page">
     <div class="header">
-      <van-image round width="56" height="56" />
+      <van-image round width="56" height="56" :src="userInfo?.avatar || undefined" />
       <div class="info">
-        <div class="name">未登录</div>
-        <div class="login" @click="router.push('/login')">点击登录 / 注册</div>
+        <div class="name">{{ displayName }}</div>
+        <div v-if="!isLoggedIn" class="login" @click="goLogin">点击登录 / 注册</div>
+        <div v-else class="login">邀请码：{{ userInfo?.inviteCode }}</div>
       </div>
+      <van-button v-if="isLoggedIn" size="small" plain @click="logout">退出</van-button>
     </div>
 
     <div class="assets">
       <div class="asset">
-        <b>0</b>
+        <b>{{ account?.availableFund ?? 0 }}</b>
         <span>可用贡献金</span>
       </div>
-      <div class="asset" @click="router.push('/withdraw')">
-        <b>0</b>
+      <div class="asset" @click="isLoggedIn ? router.push('/withdraw') : goLogin()">
+        <b>{{ account?.withdrawableCash ?? 0 }}</b>
         <span>提现金</span>
       </div>
     </div>
@@ -47,6 +82,9 @@ const router = useRouter();
   gap: 12px;
   padding: 24px 16px;
   background: #fff;
+}
+.info {
+  flex: 1;
 }
 .name {
   font-size: 18px;
