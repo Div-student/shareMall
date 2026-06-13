@@ -2,12 +2,14 @@
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
+import { useCartStore } from '@/stores/cart';
 import { useFundStore } from '@/stores/fund';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const userStore = useUserStore();
 const fundStore = useFundStore();
+const cartStore = useCartStore();
 const { userInfo, isLoggedIn } = storeToRefs(userStore);
 const { account } = storeToRefs(fundStore);
 
@@ -28,6 +30,7 @@ function goLogin() {
 function logout() {
   userStore.logout();
   fundStore.reset();
+  cartStore.reset();
 }
 
 onMounted(() => {

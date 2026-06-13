@@ -25,6 +25,7 @@ export class FundRecordEntity {
     type: 'enum',
     enum: [
       'order_accrue',
+      'checkin_start',
       'checkin_cashout',
       'order_deduct',
       'nft_exchange',
@@ -37,6 +38,7 @@ export class FundRecordEntity {
   })
   changeType!:
     | 'order_accrue'
+    | 'checkin_start'
     | 'checkin_cashout'
     | 'order_deduct'
     | 'nft_exchange'

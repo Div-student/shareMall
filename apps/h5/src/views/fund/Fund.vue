@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onActivated, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useFundStore } from '@/stores/fund';
@@ -10,9 +10,12 @@ const { account } = storeToRefs(fundStore);
 
 const activePlan = computed(() => account.value?.activePlan);
 
-onMounted(() => {
-  fundStore.fetchAccount();
-});
+function refreshAccount() {
+  void fundStore.fetchAccount();
+}
+
+onMounted(refreshAccount);
+onActivated(refreshAccount);
 
 function goCheckin() {
   router.push('/fund/checkin');

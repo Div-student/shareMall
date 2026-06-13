@@ -21,6 +21,7 @@ export enum AssetType {
 /** 资产变动类型 */
 export enum FundChangeType {
   OrderAccrue = 'order_accrue',
+  CheckinStart = 'checkin_start',
   CheckinCashout = 'checkin_cashout',
   OrderDeduct = 'order_deduct',
   NftExchange = 'nft_exchange',

@@ -1,22 +1,60 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { showToast } from 'vant';
 import type { ProductDetail } from '@sharemall/shared';
+import { addToCart } from '@/api/cart';
 import { fetchProductDetail } from '@/api/product';
+import { useCartStore } from '@/stores/cart';
 
 const route = useRoute();
 const router = useRouter();
+const cartStore = useCartStore();
 const loading = ref(true);
 const product = ref<ProductDetail | null>(null);
+const selectedSkuId = ref<number | null>(null);
 
 const displayPrice = computed(() => {
   if (!product.value) return 0;
   return Math.round(product.value.price * 100);
 });
 
+const currentSkuId = computed(() => {
+  if (!product.value) return null;
+  return selectedSkuId.value ?? product.value.skus[0]?.id ?? null;
+});
+
+async function onAddCart() {
+  if (!product.value || !currentSkuId.value) return;
+  await addToCart({ productId: product.value.id, skuId: currentSkuId.value, quantity: 1 });
+  await cartStore.fetchCount();
+  showToast('已加入购物车');
+}
+
+function onBuyNow() {
+  if (!product.value || !currentSkuId.value) return;
+  const sku = product.value.skus.find((s) => s.id === currentSkuId.value);
+  sessionStorage.setItem(
+    'checkoutItems',
+    JSON.stringify([
+      {
+        skuId: currentSkuId.value,
+        quantity: 1,
+        title: product.value.title,
+        mainImage: sku?.skuImage ?? product.value.mainImage,
+        price: sku?.price ?? product.value.price,
+      },
+    ]),
+  );
+  router.push('/order/confirm');
+}
+
 onMounted(async () => {
   try {
     product.value = await fetchProductDetail(route.params.id as string);
+    if (product.value?.skus.length) {
+      selectedSkuId.value = product.value.skus[0].id;
+    }
   } finally {
     loading.value = false;
   }
@@ -47,8 +85,13 @@ onMounted(async () => {
       <van-notice-bar scrollable text="实时下单动态：暂无数据" />
       <div class="detail" v-html="product.detailHtml" />
 
-      <van-submit-bar :price="displayPrice" button-text="立即购买" @submit="router.push('/order/confirm')">
-        <van-button icon="cart-o" type="warning" plain @click="router.push('/cart')" />
+      <van-submit-bar
+        :price="displayPrice"
+        button-text="立即购买"
+        safe-area-inset-bottom
+        @submit="onBuyNow"
+      >
+        <van-button type="warning" plain @click="onAddCart">加入购物车</van-button>
       </van-submit-bar>
     </template>
     <van-empty v-else description="商品不存在" />

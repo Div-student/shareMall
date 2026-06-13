@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onActivated, onMounted, ref } from 'vue';
 import type { FundRecord } from '@sharemall/shared';
 import { fetchFundRecords } from '@/api/fund';
 
@@ -8,6 +8,7 @@ const list = ref<FundRecord[]>([]);
 
 const changeTypeMap: Record<string, string> = {
   order_accrue: '下单累计',
+  checkin_start: '开启打卡扣减',
   checkin_cashout: '打卡兑现',
   order_deduct: '下单抵扣',
   nft_exchange: '藏品兑换',
@@ -18,14 +19,25 @@ const changeTypeMap: Record<string, string> = {
   task_reward: '任务奖励',
 };
 
-onMounted(async () => {
+function recordTitle(item: FundRecord) {
+  if (item.changeType === 'order_accrue' && item.remark?.includes('确认收货')) {
+    return '确认收货累计';
+  }
+  return changeTypeMap[item.changeType] ?? item.changeType;
+}
+
+async function loadRecords() {
+  loading.value = true;
   try {
     const res = await fetchFundRecords({ page: 1, pageSize: 50 });
     list.value = res.list;
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(loadRecords);
+onActivated(loadRecords);
 </script>
 
 <template>
@@ -37,7 +49,7 @@ onMounted(async () => {
       <van-cell
         v-for="item in list"
         :key="item.id"
-        :title="changeTypeMap[item.changeType] ?? item.changeType"
+        :title="recordTitle(item)"
         :label="item.remark"
         :value="`${item.amount > 0 ? '+' : ''}${item.amount}`"
       />

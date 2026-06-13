@@ -238,7 +238,7 @@ CREATE TABLE `fund_record` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT UNSIGNED NOT NULL,
   `asset_type` ENUM('pending_fund','available_fund','withdrawable_cash') NOT NULL,
-  `change_type` ENUM('order_accrue','checkin_cashout','order_deduct','nft_exchange','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
+  `change_type` ENUM('order_accrue','checkin_start','checkin_cashout','order_deduct','nft_exchange','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
   `amount` DECIMAL(12,2) NOT NULL COMMENT '正负',
   `balance_after` DECIMAL(12,2) NOT NULL,
   `ref_type` ENUM('order','checkin','nft','withdraw','task') DEFAULT NULL,

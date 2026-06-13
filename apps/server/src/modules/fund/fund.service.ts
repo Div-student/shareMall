@@ -106,9 +106,6 @@ export class FundService {
         throw new BadRequestException('待兑现贡献金不足');
       }
 
-      acc.pendingFund = this.roundMoney(acc.pendingFund - tier);
-      await accRepo.save(acc);
-
       const plan = await manager.save(
         manager.create(CheckinPlanEntity, {
           userId,
@@ -123,6 +120,20 @@ export class FundService {
           startedAt: new Date(),
         }),
       );
+
+      await this.applyBalanceChange(manager, userId, {
+        pendingDelta: -tier,
+        records: [
+          {
+            assetType: 'pending_fund',
+            changeType: 'checkin_start',
+            amount: -tier,
+            refType: 'checkin',
+            refId: plan.id,
+            remark: `开启${tier}档打卡`,
+          },
+        ],
+      });
 
       return { planId: Number(plan.id), ...this.toPlanVo(plan) };
     });
@@ -256,21 +267,75 @@ export class FundService {
     return { success: true };
   }
 
-  async accruePending(userId: string, amount: number, remark = '贡献金累计') {
+  async accruePending(userId: string, amount: number, remark = '贡献金累计', refId?: string) {
     await this.dataSource.transaction((manager) =>
-      this.applyBalanceChange(manager, userId, {
-        pendingDelta: amount,
-        records: [
-          {
-            assetType: 'pending_fund',
-            changeType: 'order_accrue',
-            amount,
-            refType: 'order',
-            remark,
-          },
-        ],
-      }),
+      this.accruePendingForOrder(manager, userId, amount, refId, remark),
     );
+  }
+
+  async accruePendingForOrder(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    refId?: string,
+    remark = '贡献金累计',
+  ) {
+    if (refId && (await this.hasOrderFundAccrued(manager, userId, refId))) {
+      return;
+    }
+
+    await this.applyBalanceChange(manager, userId, {
+      pendingDelta: amount,
+      records: [
+        {
+          assetType: 'pending_fund',
+          changeType: 'order_accrue',
+          amount,
+          refType: 'order',
+          refId,
+          remark,
+        },
+      ],
+    });
+  }
+
+  async hasOrderFundAccrued(
+    manager: DataSource['manager'],
+    userId: string,
+    orderId: string,
+  ) {
+    const recordRepo = manager.getRepository(FundRecordEntity);
+    const count = await recordRepo
+      .createQueryBuilder('r')
+      .where('r.user_id = :userId', { userId })
+      .andWhere('r.change_type = :changeType', { changeType: 'order_accrue' })
+      .andWhere('r.ref_type = :refType', { refType: 'order' })
+      .andWhere('r.ref_id = :orderId', { orderId })
+      .andWhere('r.remark LIKE :remark', { remark: '确认收货累计%' })
+      .getCount();
+    return count > 0;
+  }
+
+  async deductAvailable(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    refId: string,
+    remark = '订单抵扣',
+  ) {
+    await this.applyBalanceChange(manager, userId, {
+      availableDelta: -amount,
+      records: [
+        {
+          assetType: 'available_fund',
+          changeType: 'order_deduct',
+          amount: -amount,
+          refType: 'order',
+          refId,
+          remark,
+        },
+      ],
+    });
   }
 
   private async applyBalanceChange(

@@ -99,6 +99,77 @@ export interface OrderPreview {
   accruedFund: number;
 }
 
+/** 购物车项 */
+export interface CartItem {
+  id: number;
+  productId: number;
+  skuId: number;
+  title: string;
+  mainImage: string;
+  spec: Record<string, string>;
+  price: number;
+  quantity: number;
+  checked: boolean;
+  stock: number;
+  fundAmount: number;
+  lineAmount: number;
+}
+
+/** 收货地址 */
+export interface UserAddress {
+  id: number;
+  receiver: string;
+  phone: string;
+  province: string;
+  city: string;
+  district: string;
+  detail: string;
+  isDefault: boolean;
+  fullAddress: string;
+}
+
+/** 订单列表项 */
+export interface OrderListItem {
+  id: number;
+  orderNo: string;
+  status: string;
+  payAmount: number;
+  totalAmount: number;
+  fundDeductAmount: number;
+  accruedFund: number;
+  createdAt: string;
+  items: {
+    id: number;
+    productId: number;
+    title: string;
+    mainImage: string;
+    price: number;
+    quantity: number;
+  }[];
+}
+
+/** 订单详情 */
+export interface OrderDetail extends Omit<OrderListItem, 'items'> {
+  address: Record<string, string>;
+  couponAmount: number;
+  freight: number;
+  payMethod?: string | null;
+  paidAt?: string | null;
+  shippedAt?: string | null;
+  receivedAt?: string | null;
+  items: {
+    id: number;
+    productId: number;
+    skuId: number | null;
+    title: string;
+    mainImage: string;
+    spec: Record<string, string>;
+    price: number;
+    quantity: number;
+    itemFund: number;
+  }[];
+}
+
 /** 打卡计划 */
 export interface CheckinPlan {
   id: number;
