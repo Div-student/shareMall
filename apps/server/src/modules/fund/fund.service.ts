@@ -59,15 +59,24 @@ export class FundService {
   async listRecords(userId: string, query: FundRecordQueryDto) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const where: { userId: string; assetType?: FundRecordEntity['assetType'] } = { userId };
-    if (query.assetType) where.assetType = query.assetType;
 
-    const [rows, total] = await this.records.findAndCount({
-      where,
-      order: { id: 'DESC' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+    const qb = this.records
+      .createQueryBuilder('r')
+      .where('r.user_id = :userId', { userId })
+      .orderBy('r.id', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize);
+
+    if (query.assetType) {
+      qb.andWhere('r.asset_type = :assetType', { assetType: query.assetType });
+    } else {
+      // 贡献金明细：仅展示待兑现/可用贡献金变动，不含提现金流水
+      qb.andWhere('r.asset_type IN (:...assetTypes)', {
+        assetTypes: ['pending_fund', 'available_fund'],
+      });
+    }
+
+    const [rows, total] = await qb.getManyAndCount();
 
     return {
       list: rows.map((r) => ({
@@ -267,6 +276,84 @@ export class FundService {
     return { success: true };
   }
 
+  async accrueByPhone(
+    phone: string,
+    amount: number,
+    assetType: 'pending_fund' | 'available_fund' | 'withdrawable_cash' = 'pending_fund',
+    remark?: string,
+  ) {
+    const user = await this.users.findOne({ where: { phone } });
+    if (!user) throw new NotFoundException('用户不存在');
+    await this.dataSource.transaction((manager) =>
+      this.accrueAsset(manager, user.id, amount, assetType, remark),
+    );
+    return { success: true };
+  }
+
+  async grantTaskReward(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    taskId: string,
+    taskName: string,
+    rewardType: 'fund' | 'other' = 'fund',
+  ) {
+    const assetType = rewardType === 'fund' ? 'pending_fund' : 'withdrawable_cash';
+    await this.applyBalanceChange(manager, userId, {
+      pendingDelta: rewardType === 'fund' ? amount : undefined,
+      cashDelta: rewardType === 'other' ? amount : undefined,
+      records: [
+        {
+          assetType,
+          changeType: 'task_reward',
+          amount,
+          refType: 'task',
+          refId: taskId,
+          remark: `任务奖励：${taskName}`,
+        },
+      ],
+    });
+  }
+
+  async accrueAsset(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    assetType: 'pending_fund' | 'available_fund' | 'withdrawable_cash',
+    remark = '运营充值',
+  ) {
+    const changeType =
+      assetType === 'withdrawable_cash'
+        ? 'task_reward'
+        : assetType === 'available_fund'
+          ? 'checkin_cashout'
+          : 'order_accrue';
+
+    const input: {
+      pendingDelta?: number;
+      availableDelta?: number;
+      cashDelta?: number;
+      records: RecordInput[];
+    } = { records: [] };
+
+    if (assetType === 'pending_fund') {
+      input.pendingDelta = amount;
+    } else if (assetType === 'available_fund') {
+      input.availableDelta = amount;
+    } else {
+      input.cashDelta = amount;
+    }
+
+    input.records.push({
+      assetType,
+      changeType,
+      amount,
+      remark,
+    });
+
+    await this.applyBalanceChange(manager, userId, input);
+  }
+
   async accruePending(userId: string, amount: number, remark = '贡献金累计', refId?: string) {
     await this.dataSource.transaction((manager) =>
       this.accruePendingForOrder(manager, userId, amount, refId, remark),
@@ -332,6 +419,107 @@ export class FundService {
           amount: -amount,
           refType: 'order',
           refId,
+          remark,
+        },
+      ],
+    });
+  }
+
+  async deductAvailableForNftExchange(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    nftId: string,
+    nftName: string,
+  ) {
+    await this.applyBalanceChange(manager, userId, {
+      availableDelta: -amount,
+      records: [
+        {
+          assetType: 'available_fund',
+          changeType: 'nft_exchange',
+          amount: -amount,
+          refType: 'nft',
+          refId: nftId,
+          remark: `兑换藏品：${nftName}`,
+        },
+      ],
+    });
+  }
+
+  async deductAvailableForNftTradeBuy(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    tradeId: string,
+    nftName: string,
+  ) {
+    await this.applyBalanceChange(manager, userId, {
+      availableDelta: -amount,
+      records: [
+        {
+          assetType: 'available_fund',
+          changeType: 'nft_trade_buy',
+          amount: -amount,
+          refType: 'nft',
+          refId: tradeId,
+          remark: `购买藏品：${nftName}`,
+        },
+      ],
+    });
+  }
+
+  async addWithdrawableForNftTradeIncome(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+  ) {
+    await this.applyBalanceChange(manager, userId, {
+      cashDelta: amount,
+      records: [],
+    });
+  }
+
+  async rollbackAvailableForAftersale(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    orderId: string,
+    remark = '售后回退抵扣',
+  ) {
+    if (amount <= 0) return;
+    await this.applyBalanceChange(manager, userId, {
+      availableDelta: amount,
+      records: [
+        {
+          assetType: 'available_fund',
+          changeType: 'aftersale_rollback',
+          amount,
+          refType: 'order',
+          refId: orderId,
+          remark,
+        },
+      ],
+    });
+  }
+
+  async voidPendingForAftersale(
+    manager: DataSource['manager'],
+    userId: string,
+    amount: number,
+    orderId: string,
+    remark = '售后冲销累计',
+  ) {
+    if (amount <= 0) return;
+    await this.applyBalanceChange(manager, userId, {
+      pendingDelta: -amount,
+      records: [
+        {
+          assetType: 'pending_fund',
+          changeType: 'aftersale_void',
+          amount: -amount,
+          refType: 'order',
+          refId: orderId,
           remark,
         },
       ],

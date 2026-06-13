@@ -71,8 +71,13 @@ export class AdminFundController {
   }
 
   @Post('accrue')
-  @ApiOperation({ summary: '测试充值待兑现贡献金（开发/运营）' })
+  @ApiOperation({ summary: '测试充值资产（开发/运营）' })
   accrue(@Body() dto: AdminAccrueDto) {
-    return this.fundService.accruePendingByPhone(dto.phone, dto.amount, dto.remark);
+    return this.fundService.accrueByPhone(
+      dto.phone,
+      dto.amount,
+      dto.assetType ?? 'pending_fund',
+      dto.remark,
+    );
   }
 }

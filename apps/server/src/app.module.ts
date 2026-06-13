@@ -8,6 +8,10 @@ import { OrderModule } from './modules/order/order.module';
 import { FundModule } from './modules/fund/fund.module';
 import { NftModule } from './modules/nft/nft.module';
 import { UserModule } from './modules/user/user.module';
+import { WithdrawModule } from './modules/withdraw/withdraw.module';
+import { AftersaleModule } from './modules/aftersale/aftersale.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { TaskModule } from './modules/task/task.module';
 import { SmsModule } from './common/sms/sms.module';
 import { AuthCommonModule } from './common/auth/auth-common.module';
 import { HealthController } from './health.controller';
@@ -46,6 +50,10 @@ import { HealthController } from './health.controller';
     FundModule,
     NftModule,
     UserModule,
+    WithdrawModule,
+    AftersaleModule,
+    TaskModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })

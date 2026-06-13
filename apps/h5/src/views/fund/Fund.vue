@@ -51,9 +51,11 @@ function goCheckin() {
       />
     </van-cell-group>
 
-    <van-grid :column-num="2">
+    <van-grid :column-num="4">
       <van-grid-item icon="completed" text="打卡兑现" @click="goCheckin" />
+      <van-grid-item icon="calendar-o" text="打卡记录" @click="router.push('/fund/checkin/records')" />
       <van-grid-item icon="balance-list-o" text="贡献金明细" @click="router.push('/fund/records')" />
+      <van-grid-item icon="diamond-o" text="兑换藏品" @click="router.push('/nft/market')" />
     </van-grid>
   </div>
 </template>

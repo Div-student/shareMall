@@ -1,15 +1,27 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import { register } from '@/api/auth';
 import { useSmsCode } from '@/composables/useSmsCode';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
+const route = useRoute();
 const userStore = useUserStore();
 const loading = ref(false);
-const form = reactive({ phone: '', smsCode: '', password: '', inviteCode: '' });
+
+function resolveInviteCode() {
+  const code = route.query.inviteCode;
+  return typeof code === 'string' ? code.trim() : '';
+}
+
+const form = reactive({
+  phone: '',
+  smsCode: '',
+  password: '',
+  inviteCode: resolveInviteCode(),
+});
 const { countdown, send: sendCode } = useSmsCode('register');
 
 async function onSubmit() {

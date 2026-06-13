@@ -12,7 +12,7 @@ const changeTypeMap: Record<string, string> = {
   checkin_cashout: '打卡兑现',
   order_deduct: '下单抵扣',
   nft_exchange: '藏品兑换',
-  nft_trade_income: '藏品成交',
+  nft_trade_buy: '购买藏品',
   aftersale_void: '售后作废',
   aftersale_rollback: '售后回退',
   withdraw: '提现',

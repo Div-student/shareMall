@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { accruePendingFund, fetchFundRules, saveFundRules } from '@/api/fund';
+import { accruePendingFund, accrueWithdrawableCash, fetchFundRules, saveFundRules } from '@/api/fund';
 
 const loading = ref(false);
 const saving = ref(false);
 const testPhone = ref('');
 const testAmount = ref(100);
+const withdrawTestPhone = ref('');
+const withdrawTestAmount = ref(100);
 
 const form = reactive({
   defaultRatio: 0.05,
@@ -51,6 +53,15 @@ async function onAccrueTest() {
   ElMessage.success('充值成功');
 }
 
+async function onAccrueWithdrawable() {
+  if (!withdrawTestPhone.value) {
+    ElMessage.warning('请输入用户手机号');
+    return;
+  }
+  await accrueWithdrawableCash(withdrawTestPhone.value, withdrawTestAmount.value, '后台测试充值提现金');
+  ElMessage.success('提现金充值成功');
+}
+
 onMounted(loadRules);
 </script>
 
@@ -92,6 +103,15 @@ onMounted(loadRules);
         <el-input v-model="testPhone" placeholder="用户手机号" style="width: 180px; margin-right: 8px" />
         <el-input-number v-model="testAmount" :min="1" />
         <el-button style="margin-left: 8px" @click="onAccrueTest">充值</el-button>
+      </el-form-item>
+      <el-form-item label="测试充值（提现金）">
+        <el-input
+          v-model="withdrawTestPhone"
+          placeholder="用户手机号"
+          style="width: 180px; margin-right: 8px"
+        />
+        <el-input-number v-model="withdrawTestAmount" :min="1" />
+        <el-button style="margin-left: 8px" @click="onAccrueWithdrawable">充值</el-button>
       </el-form-item>
     </el-form>
   </el-card>

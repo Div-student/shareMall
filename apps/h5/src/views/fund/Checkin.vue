@@ -85,6 +85,9 @@ async function onSign() {
         >
           今日打卡
         </van-button>
+        <van-button block plain style="margin-top: 8px" @click="router.push('/fund/checkin/records')">
+          查看打卡记录
+        </van-button>
       </div>
     </template>
 

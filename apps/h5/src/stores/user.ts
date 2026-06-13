@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { fetchProfile } from '@/api/user';
 
 export interface UserInfo {
   id: string;
@@ -23,6 +24,10 @@ function loadUserInfo(): UserInfo | null {
   }
 }
 
+function saveUserInfo(info: UserInfo) {
+  localStorage.setItem(USER_KEY, JSON.stringify(info));
+}
+
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem(TOKEN_KEY) || '');
   const userInfo = ref<UserInfo | null>(loadUserInfo());
@@ -33,7 +38,24 @@ export const useUserStore = defineStore('user', () => {
     token.value = newToken;
     userInfo.value = info;
     localStorage.setItem(TOKEN_KEY, newToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(info));
+    saveUserInfo(info);
+  }
+
+  function patchUserInfo(partial: Partial<UserInfo>) {
+    if (!userInfo.value) return;
+    userInfo.value = { ...userInfo.value, ...partial };
+    saveUserInfo(userInfo.value);
+  }
+
+  async function refreshProfile() {
+    const profile = await fetchProfile();
+    patchUserInfo({
+      nickname: profile.nickname || null,
+      avatar: profile.avatar || null,
+      inviteCode: profile.inviteCode,
+      kycStatus: profile.kycStatus,
+    });
+    return profile;
   }
 
   function logout() {
@@ -43,5 +65,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem(USER_KEY);
   }
 
-  return { token, userInfo, isLoggedIn, setAuth, logout };
+  return { token, userInfo, isLoggedIn, setAuth, patchUserInfo, refreshProfile, logout };
 });

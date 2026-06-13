@@ -238,7 +238,7 @@ CREATE TABLE `fund_record` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT UNSIGNED NOT NULL,
   `asset_type` ENUM('pending_fund','available_fund','withdrawable_cash') NOT NULL,
-  `change_type` ENUM('order_accrue','checkin_start','checkin_cashout','order_deduct','nft_exchange','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
+  `change_type` ENUM('order_accrue','checkin_start','checkin_cashout','order_deduct','nft_exchange','nft_trade_buy','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
   `amount` DECIMAL(12,2) NOT NULL COMMENT '正负',
   `balance_after` DECIMAL(12,2) NOT NULL,
   `ref_type` ENUM('order','checkin','nft','withdraw','task') DEFAULT NULL,
@@ -316,7 +316,10 @@ CREATE TABLE `nft` (
   `publisher` VARCHAR(120) DEFAULT NULL,
   `total_supply` INT NOT NULL DEFAULT 0,
   `stock` INT NOT NULL DEFAULT 0,
-  `exchange_fund` DECIMAL(12,2) NOT NULL COMMENT '兑换所需可用贡献金',
+  `exchange_fund` DECIMAL(12,2) NOT NULL COMMENT '兑换所需可用贡献金(同步当前价)',
+  `start_price` DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '起始价格',
+  `current_price` DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '当前参考价',
+  `last_price_date` DATE DEFAULT NULL COMMENT '上次日波动更新日期',
   `limit_per_user` INT NOT NULL DEFAULT 0 COMMENT '0=不限',
   `rights_desc` TEXT,
   `status` ENUM('on_sale','off_shelf') NOT NULL DEFAULT 'off_shelf',
@@ -361,6 +364,8 @@ CREATE TABLE `nft_trade` (
   `buyer_id` BIGINT UNSIGNED NOT NULL,
   `seller_id` BIGINT UNSIGNED NOT NULL,
   `price` DECIMAL(12,2) NOT NULL,
+  `reference_price` DECIMAL(12,2) DEFAULT NULL COMMENT '成交时参考价',
+  `deal_premium_factor` DECIMAL(8,4) DEFAULT NULL COMMENT '成交随机因子0-1',
   `fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `seller_income` DECIMAL(12,2) NOT NULL COMMENT '入提现金 = price - fee',
   `traded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -369,6 +374,18 @@ CREATE TABLE `nft_trade` (
   KEY `idx_buyer` (`buyer_id`),
   KEY `idx_seller` (`seller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='藏品成交记录';
+
+CREATE TABLE `nft_price_history` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nft_id` BIGINT UNSIGNED NOT NULL,
+  `price_date` DATE NOT NULL,
+  `price` DECIMAL(12,2) NOT NULL,
+  `change_pct` DECIMAL(8,4) DEFAULT NULL COMMENT '相对前一日涨跌幅',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_nft_date` (`nft_id`, `price_date`),
+  KEY `idx_nft_id` (`nft_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='藏品每日价格历史';
 
 -- ============ 提现 ============
 

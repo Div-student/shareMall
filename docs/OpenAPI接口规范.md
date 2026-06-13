@@ -1,6 +1,6 @@
 # OpenAPI / Swagger 接口规范
 
-> 版本：v1.0　|　配套：《数据模型与接口字段清单.md》《数据库DDL.md》
+> 版本：v1.0　|　配套：《数据模型与接口字段清单.md》《数据库DDL.md》《贡献金业务说明.md》《数字藏品业务说明.md》
 >
 > 下方为 OpenAPI 3.0 规范（核心接口）。进入开发时可导出为 `docs/openapi.yaml`，或由 NestJS `@nestjs/swagger` 自动生成后与此对齐。统一响应包裹 `{ code, message, data }`，鉴权为 `Authorization: Bearer <token>`。
 
@@ -375,10 +375,14 @@ paths:
   /api/fund/records:
     get:
       tags: [Fund]
-      summary: 贡献金/提现金流水
+      summary: 贡献金明细流水
+      description: |
+        默认仅返回 pending_fund / available_fund 变动（用户端贡献金明细页）。
+        传 assetType=withdrawable_cash 可单独查提现金流水。
+        藏品成交卖家所得入提现金，不写 fund_record，不在默认明细中。
       parameters:
-        - { name: assetType, in: query, schema: { type: string, enum: [pending_fund, available_fund, withdrawable_cash] } }
-        - { name: changeType, in: query, schema: { type: string } }
+        - { name: assetType, in: query, schema: { type: string, enum: [pending_fund, available_fund, withdrawable_cash] }, description: 不传则仅 pending+available }
+        - { name: changeType, in: query, schema: { type: string, enum: [order_accrue, checkin_start, checkin_cashout, order_deduct, nft_exchange, nft_trade_buy, aftersale_void, aftersale_rollback, withdraw, task_reward] } }
         - { name: page, in: query, schema: { type: integer } }
       responses: { '200': { description: 分页 } }
 
@@ -445,22 +449,33 @@ paths:
       tags: [NFT]
       summary: 藏品兑换商城列表
       security: []
-      responses: { '200': { description: 含 exchangeFund/stock } }
+      responses: { '200': { description: 含 startPrice/currentPrice/dealPriceMin/Max/stock } }
+
+  /api/nft/{id}/price-history:
+    get:
+      tags: [NFT]
+      summary: 藏品价格走势
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: days, in: query, schema: { type: integer, default: 30 } }
+      responses: { '200': { description: '[{ date, price, changePct }]' } }
 
   /api/nft/{id}:
     get:
       tags: [NFT]
-      summary: 藏品详情
+      summary: 藏品详情（含价格走势）
       security: []
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
-      responses: { '200': { description: OK } }
+      responses: { '200': { description: 含 priceHistory, dealPriceMin/Max } }
 
   /api/nft/{id}/exchange:
     post:
       tags: [NFT]
-      summary: 兑换藏品（扣可用贡献金）
+      summary: 兑换藏品（动态成交价）
+      description: dealPrice = currentPrice × (1 + random × dealPremiumPct)
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
-      responses: { '200': { description: OK } }
+      responses: { '200': { description: 返回 dealPrice, referencePrice, serialNo } }
 
   /api/nft/mine:
     get:
@@ -471,26 +486,23 @@ paths:
   /api/nft/listings:
     post:
       tags: [NFT]
-      summary: 挂单卖出
+      summary: 挂单卖出（无需传 price）
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [userNftId, price]
+              required: [userNftId]
               properties:
                 userNftId: { type: integer }
-                price: { type: number }
-      responses: { '200': { description: 返回手续费与预计到账(提现金) } }
+      responses: { '200': { description: 返回 referencePrice, dealPriceMin/Max, 预计到账 } }
 
   /api/nft/listings/{id}:
     put:
       tags: [NFT]
-      summary: 改价
+      summary: 同步挂单参考价
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
-      requestBody:
-        content: { application/json: { schema: { type: object, properties: { price: { type: number } } } } }
       responses: { '200': { description: OK } }
     delete:
       tags: [NFT]
@@ -508,9 +520,10 @@ paths:
   /api/nft/trade/{listingId}/buy:
     post:
       tags: [NFT]
-      summary: 购买挂单（成交，卖家所得入提现金）
+      summary: 购买挂单（动态成交价）
+      description: dealPrice 服务端计算；买家扣 available_fund；卖家 withdrawable_cash +(price-fee)
       parameters: [{ name: listingId, in: path, required: true, schema: { type: integer } }]
-      responses: { '200': { description: OK } }
+      responses: { '200': { description: 返回 price, referencePrice, fee, sellerIncome } }
 
   /api/nft/trade/records:
     get:

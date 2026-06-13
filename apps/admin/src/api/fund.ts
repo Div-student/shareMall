@@ -18,5 +18,19 @@ export function saveFundRules(data: FundRules) {
 }
 
 export function accruePendingFund(phone: string, amount: number, remark?: string) {
-  return request.post<unknown, { success: boolean }>('/admin/fund/accrue', { phone, amount, remark });
+  return request.post<unknown, { success: boolean }>('/admin/fund/accrue', {
+    phone,
+    amount,
+    remark,
+    assetType: 'pending_fund',
+  });
+}
+
+export function accrueWithdrawableCash(phone: string, amount: number, remark?: string) {
+  return request.post<unknown, { success: boolean }>('/admin/fund/accrue', {
+    phone,
+    amount,
+    remark,
+    assetType: 'withdrawable_cash',
+  });
 }

@@ -13,6 +13,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/auth/Register.vue'),
     meta: { guest: true },
   },
+  {
+    path: '/kyc',
+    name: 'Kyc',
+    component: () => import('@/views/auth/Kyc.vue'),
+    meta: { requiresAuth: true },
+  },
 
   // 商品与购物
   {
@@ -84,10 +90,63 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/fund/checkin/records',
+    name: 'CheckinRecords',
+    component: () => import('@/views/fund/CheckinRecords.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/fund/records',
     name: 'FundRecords',
     component: () => import('@/views/fund/FundRecords.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/tasks',
+    name: 'Tasks',
+    component: () => import('@/views/tasks/Tasks.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  // 数字藏品
+  {
+    path: '/nft/market',
+    name: 'NftMarket',
+    component: () => import('@/views/nft/Market.vue'),
+  },
+  {
+    path: '/nft/mine',
+    name: 'NftMine',
+    component: () => import('@/views/nft/Mine.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/nft/trade',
+    name: 'NftTrade',
+    component: () => import('@/views/nft/Trade.vue'),
+  },
+  {
+    path: '/nft/listings',
+    name: 'NftListings',
+    component: () => import('@/views/nft/Listings.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/nft/mine/:userNftId/sell',
+    name: 'NftSell',
+    component: () => import('@/views/nft/Sell.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/nft/mine/:userNftId',
+    name: 'NftMineDetail',
+    component: () => import('@/views/nft/MineDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/nft/:id',
+    name: 'NftDetail',
+    component: () => import('@/views/nft/Detail.vue'),
   },
 
   // 个人中心
@@ -110,9 +169,41 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/mine/invite',
+    name: 'Invite',
+    component: () => import('@/views/mine/Invite.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/withdraw',
     name: 'Withdraw',
     component: () => import('@/views/mine/Withdraw.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/withdraw/records',
+    name: 'WithdrawRecords',
+    component: () => import('@/views/mine/WithdrawRecords.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  // 售后
+  {
+    path: '/aftersale',
+    name: 'Aftersale',
+    component: () => import('@/views/order/Aftersale.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/aftersale/apply',
+    name: 'AftersaleApply',
+    component: () => import('@/views/order/AftersaleApply.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/aftersale/:id',
+    name: 'AftersaleDetail',
+    component: () => import('@/views/order/AftersaleDetail.vue'),
     meta: { requiresAuth: true },
   },
 ];

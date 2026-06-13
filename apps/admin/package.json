@@ -12,6 +12,7 @@
   "dependencies": {
     "@sharemall/shared": "workspace:*",
     "axios": "^1.7.7",
+    "echarts": "^6.1.0",
     "element-plus": "^2.8.4",
     "pinia": "^2.2.2",
     "vue": "^3.5.6",

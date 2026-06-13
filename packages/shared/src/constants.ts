@@ -25,6 +25,7 @@ export enum FundChangeType {
   CheckinCashout = 'checkin_cashout',
   OrderDeduct = 'order_deduct',
   NftExchange = 'nft_exchange',
+  NftTradeBuy = 'nft_trade_buy',
   NftTradeIncome = 'nft_trade_income',
   AftersaleVoid = 'aftersale_void',
   AftersaleRollback = 'aftersale_rollback',

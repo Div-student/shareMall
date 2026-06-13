@@ -243,7 +243,7 @@ CREATE TABLE `fund_record` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT UNSIGNED NOT NULL,
   `asset_type` ENUM('pending_fund','available_fund','withdrawable_cash') NOT NULL,
-  `change_type` ENUM('order_accrue','checkin_cashout','order_deduct','nft_exchange','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
+  `change_type` ENUM('order_accrue','checkin_start','checkin_cashout','order_deduct','nft_exchange','nft_trade_buy','nft_trade_income','aftersale_void','aftersale_rollback','withdraw','task_reward') NOT NULL,
   `amount` DECIMAL(12,2) NOT NULL COMMENT '正负',
   `balance_after` DECIMAL(12,2) NOT NULL,
   `ref_type` ENUM('order','checkin','nft','withdraw','task') DEFAULT NULL,
@@ -254,6 +254,7 @@ CREATE TABLE `fund_record` (
   KEY `idx_user_asset` (`user_id`,`asset_type`),
   KEY `idx_ref` (`ref_type`,`ref_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='贡献金/提现金流水';
+-- change_type 说明：nft_trade_buy=二级市场购买扣可用贡献金；nft_trade_income 保留枚举、当前卖家成交不写流水
 
 CREATE TABLE `checkin_plan` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -321,7 +322,10 @@ CREATE TABLE `nft` (
   `publisher` VARCHAR(120) DEFAULT NULL,
   `total_supply` INT NOT NULL DEFAULT 0,
   `stock` INT NOT NULL DEFAULT 0,
-  `exchange_fund` DECIMAL(12,2) NOT NULL COMMENT '兑换所需可用贡献金',
+  `exchange_fund` DECIMAL(12,2) NOT NULL COMMENT '兼容字段，同步当前价',
+  `start_price` DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '起始价格(后台设置)',
+  `current_price` DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '当前参考价(每日波动)',
+  `last_price_date` DATE DEFAULT NULL COMMENT '上次日波动更新日期',
   `limit_per_user` INT NOT NULL DEFAULT 0 COMMENT '0=不限',
   `rights_desc` TEXT,
   `status` ENUM('on_sale','off_shelf') NOT NULL DEFAULT 'off_shelf',
@@ -350,7 +354,7 @@ CREATE TABLE `nft_listing` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_nft_id` BIGINT UNSIGNED NOT NULL,
   `seller_id` BIGINT UNSIGNED NOT NULL,
-  `price` DECIMAL(12,2) NOT NULL,
+  `price` DECIMAL(12,2) NOT NULL COMMENT '挂单时参考价快照',
   `fee_rate` DECIMAL(6,4) NOT NULL COMMENT '手续费比例快照',
   `status` ENUM('listing','sold','cancelled','removed') NOT NULL DEFAULT 'listing',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -365,7 +369,9 @@ CREATE TABLE `nft_trade` (
   `listing_id` BIGINT UNSIGNED NOT NULL,
   `buyer_id` BIGINT UNSIGNED NOT NULL,
   `seller_id` BIGINT UNSIGNED NOT NULL,
-  `price` DECIMAL(12,2) NOT NULL,
+  `price` DECIMAL(12,2) NOT NULL COMMENT '实际成交价',
+  `reference_price` DECIMAL(12,2) DEFAULT NULL COMMENT '成交时参考价',
+  `deal_premium_factor` DECIMAL(8,4) DEFAULT NULL COMMENT '成交随机因子0-1',
   `fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `seller_income` DECIMAL(12,2) NOT NULL COMMENT '入提现金 = price - fee',
   `traded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -374,6 +380,18 @@ CREATE TABLE `nft_trade` (
   KEY `idx_buyer` (`buyer_id`),
   KEY `idx_seller` (`seller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='藏品成交记录';
+
+CREATE TABLE `nft_price_history` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nft_id` BIGINT UNSIGNED NOT NULL,
+  `price_date` DATE NOT NULL,
+  `price` DECIMAL(12,2) NOT NULL,
+  `change_pct` DECIMAL(8,4) DEFAULT NULL COMMENT '相对前一日涨跌幅',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_nft_date` (`nft_id`, `price_date`),
+  KEY `idx_nft_id` (`nft_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='藏品每日价格历史';
 
 -- ============ 提现 ============
 
@@ -451,7 +469,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 ## 设计要点说明
 
-- 资产一致性：`fund_account` 三类资产同表分列，`version` 支持乐观锁；所有余额变更与 `fund_record` 流水必须同事务写入。
+- 资产一致性：`fund_account` 三类资产同表分列，`version` 支持乐观锁。待兑现/可用贡献金变动与 `fund_record` 同事务；提现金部分场景（藏品成交入账、提现冻结）仅改余额。详见 [贡献金业务说明.md](./贡献金业务说明.md)。
 - 唯一约束防重：`order_no`、`payment.trade_no`、`user_nft.serial_no`、`checkin_record(plan_id,day_index)`、`config(group,key)`、`invite_relation.invitee_id`。
 - 外键策略：高并发电商通常不建物理外键，靠应用层 + 索引保证关联（上方仅建索引，未声明 FOREIGN KEY，便于分库与性能）。
 - 金额精度：贡献金、提现金、价格统一 `decimal(12,2)`；比例用 `decimal(6,4)`（如 0.0500 表示 5%）。

@@ -3,7 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard';
 import { AddressService } from './address.service';
-import { CreateAddressDto } from './dto';
+import { CreateAddressDto, SubmitKycDto } from './dto';
+import { KycService } from './kyc.service';
 import { UserService } from './user.service';
 
 @ApiTags('User')
@@ -14,6 +15,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly addressService: AddressService,
+    private readonly kycService: KycService,
   ) {}
 
   @Get('user/profile')
@@ -40,27 +42,21 @@ export class UserController {
     return this.addressService.create(userId, dto);
   }
 
+  @Get('user/kyc')
+  @ApiOperation({ summary: '实名认证状态' })
+  kycStatus(@CurrentUser('sub') userId: string) {
+    return this.kycService.getStatus(userId);
+  }
+
+  @Post('user/kyc')
+  @ApiOperation({ summary: '提交实名认证' })
+  submitKyc(@CurrentUser('sub') userId: string, @Body() dto: SubmitKycDto) {
+    return this.kycService.submit(userId, dto);
+  }
+
   @Get('user/invite')
   @ApiOperation({ summary: '我的邀请' })
-  invite() {
-    return { inviteCode: '', invitedCount: 0, list: [] };
-  }
-
-  @Get('withdraw/config')
-  @ApiOperation({ summary: '提现规则' })
-  withdrawConfig() {
-    return { min: 0, max: 0, fee: 0, methods: ['bank', 'wechat', 'alipay'] };
-  }
-
-  @Post('withdraw')
-  @ApiOperation({ summary: '申请提现（提现金）' })
-  withdraw(@Body() _body: unknown) {
-    return { withdrawId: 1, status: 'pending' };
-  }
-
-  @Get('withdraw/records')
-  @ApiOperation({ summary: '提现记录' })
-  withdrawRecords() {
-    return { list: [], total: 0 };
+  invite(@CurrentUser('sub') userId: string) {
+    return this.userService.getInvite(userId);
   }
 }

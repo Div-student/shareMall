@@ -36,6 +36,17 @@ function onPay() {
   router.push(`/order/pay/${order.value.id}`);
 }
 
+const APPLY_AFTERSALE_STATUSES = ['paid', 'shipped', 'received', 'completed'];
+
+function canApplyAftersale(status?: string) {
+  return status ? APPLY_AFTERSALE_STATUSES.includes(status) : false;
+}
+
+function goAftersale() {
+  if (!order.value) return;
+  router.push({ path: '/aftersale/apply', query: { orderId: String(order.value.id) } });
+}
+
 async function onReceive() {
   if (!order.value) return;
   try {
@@ -96,7 +107,7 @@ onActivated(loadOrder);
         <van-cell title="本单可获贡献金" :label="order.status === 'completed' ? '已到账' : '确认收货后到账'" :value="String(order.accruedFund)" />
       </van-cell-group>
 
-      <div v-if="order.status === 'unpaid' || order.status === 'shipped'" class="footer-bar">
+      <div v-if="order.status === 'unpaid' || order.status === 'shipped' || canApplyAftersale(order.status)" class="footer-bar">
         <van-button
           v-if="order.status === 'unpaid'"
           block
@@ -106,13 +117,22 @@ onActivated(loadOrder);
           去支付
         </van-button>
         <van-button
-          v-else
+          v-else-if="order.status === 'shipped'"
           block
           type="primary"
           :loading="receiving"
           @click="onReceive"
         >
           确认收货
+        </van-button>
+        <van-button
+          v-else-if="canApplyAftersale(order.status)"
+          block
+          plain
+          type="primary"
+          @click="goAftersale"
+        >
+          申请售后
         </van-button>
       </div>
     </template>

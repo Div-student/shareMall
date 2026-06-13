@@ -3,17 +3,26 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AddressEntity } from '../../database/entities/address.entity';
 import { FundAccountEntity } from '../../database/entities/fund-account.entity';
 import { InviteRelationEntity } from '../../database/entities/invite-relation.entity';
+import { UserKycEntity } from '../../database/entities/user-kyc.entity';
 import { UserEntity } from '../../database/entities/user.entity';
+import { AdminKycController } from './admin-kyc.controller';
 import { AddressService } from './address.service';
+import { KycService } from './kyc.service';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, FundAccountEntity, InviteRelationEntity, AddressEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      FundAccountEntity,
+      InviteRelationEntity,
+      AddressEntity,
+      UserKycEntity,
+    ]),
   ],
-  controllers: [UserController],
-  providers: [UserService, AddressService],
-  exports: [AddressService],
+  controllers: [UserController, AdminKycController],
+  providers: [UserService, AddressService, KycService],
+  exports: [AddressService, KycService],
 })
 export class UserModule {}

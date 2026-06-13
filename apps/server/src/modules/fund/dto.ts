@@ -83,4 +83,12 @@ export class AdminAccrueDto {
   @IsOptional()
   @IsString()
   remark?: string;
+
+  @ApiPropertyOptional({
+    enum: ['pending_fund', 'available_fund', 'withdrawable_cash'],
+    default: 'pending_fund',
+  })
+  @IsOptional()
+  @IsEnum(['pending_fund', 'available_fund', 'withdrawable_cash'] as const)
+  assetType?: 'pending_fund' | 'available_fund' | 'withdrawable_cash';
 }
