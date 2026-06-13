@@ -22,6 +22,11 @@ const routes: RouteRecordRaw[] = [
     meta: { tabbar: true },
   },
   {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/search/Search.vue'),
+  },
+  {
     path: '/product/:id',
     name: 'ProductDetail',
     component: () => import('@/views/product/ProductDetail.vue'),

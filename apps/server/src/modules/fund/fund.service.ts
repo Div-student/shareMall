@@ -388,7 +388,11 @@ export class FundService {
         }
         return;
       } catch (error) {
-        if (attempt === 2) throw error;
+        const retryable =
+          error instanceof Error &&
+          (error.name === 'OptimisticLockVersionMismatchError' ||
+            error.message.includes('version'));
+        if (!retryable || attempt === 2) throw error;
       }
     }
   }
