@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import { fetchInvite, type InviteInfo } from '@/api/user';
+import { copyToClipboard } from '@/utils/clipboard';
 import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
@@ -22,12 +23,12 @@ function formatTime(value?: string) {
 }
 
 async function copyText(text: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(text);
+  const ok = await copyToClipboard(text);
+  if (ok) {
     showToast(`${label}已复制`);
-  } catch {
-    showToast('复制失败，请手动复制');
+    return;
   }
+  showToast('复制失败，请手动复制');
 }
 
 async function load() {
