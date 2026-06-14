@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SmsConfigService } from '../../common/sms/sms-config.service';
 
 interface CodeEntry {
   code: string;
@@ -16,15 +17,19 @@ export class SmsService {
   private readonly store = new Map<string, CodeEntry>();
   private readonly ttlMs = 5 * 60 * 1000;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly smsConfig: SmsConfigService,
+  ) {}
 
   private key(phone: string, scene: string) {
     return `${scene}:${phone}`;
   }
 
   async send(phone: string, scene: string): Promise<void> {
-    const provider = this.config.get<string>('SMS_PROVIDER') ?? 'mock';
-    const code = provider === 'mock' ? '8888' : this.randomCode();
+    const runtime = this.smsConfig.getRuntimeConfig();
+    const provider = runtime.provider ?? this.config.get<string>('SMS_PROVIDER') ?? 'mock';
+    const code = provider === 'mock' ? (runtime.devCode || '8888') : this.randomCode();
     this.store.set(this.key(phone, scene), { code, expireAt: Date.now() + this.ttlMs });
 
     if (provider === 'mock') {

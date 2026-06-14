@@ -5,6 +5,8 @@ export interface UserProfile {
   phone: string;
   nickname: string;
   avatar: string;
+  gender?: string;
+  birthday?: string | null;
   inviteCode: string;
   kycStatus: string;
   invitedCount: number;
@@ -17,6 +19,10 @@ export interface UserProfile {
 
 export function fetchProfile() {
   return request.get<unknown, UserProfile>('/user/profile');
+}
+
+export function updateProfile(data: { nickname?: string; avatar?: string; gender?: string; birthday?: string }) {
+  return request.put<unknown, UserProfile>('/user/profile', data);
 }
 
 export interface InviteItem {

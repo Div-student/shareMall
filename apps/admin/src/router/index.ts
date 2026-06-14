@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '商品管理', permission: 'product:manage' },
       },
       {
+        path: 'categories',
+        name: 'Categories',
+        component: () => import('@/views/Categories.vue'),
+        meta: { title: '分类管理', permission: 'product:manage' },
+      },
+      {
         path: 'orders',
         name: 'AdminOrders',
         component: () => import('@/views/Orders.vue'),
@@ -127,6 +133,12 @@ const routes: RouteRecordRaw[] = [
         name: 'CheckinMonitor',
         component: () => import('@/views/CheckinMonitor.vue'),
         meta: { title: '打卡监控', permission: 'checkin:monitor' },
+      },
+      {
+        path: 'sms',
+        name: 'SmsConfig',
+        component: () => import('@/views/Sms.vue'),
+        meta: { title: '短信配置', permission: 'sms:config' },
       },
       {
         path: 'roles',

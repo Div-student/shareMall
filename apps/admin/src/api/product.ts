@@ -48,3 +48,20 @@ export function updateAdminProduct(id: number, data: Partial<AdminProduct>) {
 export function fetchAdminCategories() {
   return request.get<unknown, { list: AdminCategory[] }>('/admin/categories');
 }
+
+export function createAdminCategory(data: {
+  name: string;
+  parentId?: number;
+  icon?: string;
+  fundRatio?: number;
+  sort?: number;
+}) {
+  return request.post('/admin/categories', data);
+}
+
+export function updateAdminCategory(
+  id: number,
+  data: Partial<Pick<AdminCategory, 'name' | 'icon' | 'fundRatio' | 'sort' | 'status'>>,
+) {
+  return request.put(`/admin/categories/${id}`, data);
+}

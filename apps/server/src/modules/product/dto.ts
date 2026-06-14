@@ -201,6 +201,36 @@ export class AdminUpdateProductDto {
   sort?: number;
 }
 
+export class AdminUpdateCategoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  fundRatio?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  sort?: number;
+
+  @ApiPropertyOptional({ enum: ['show', 'hidden'] })
+  @IsOptional()
+  @IsEnum(['show', 'hidden'] as const)
+  status?: 'show' | 'hidden';
+}
+
 export class AdminCreateCategoryDto {
   @ApiProperty()
   @IsString()

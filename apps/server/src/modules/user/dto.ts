@@ -68,6 +68,51 @@ export class AdminKycListQueryDto {
   pageSize?: number;
 }
 
+export class UpdateProfileDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  nickname?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(0, 255)
+  avatar?: string;
+
+  @ApiPropertyOptional({ enum: ['unknown', 'male', 'female'] })
+  @IsOptional()
+  @IsEnum(['unknown', 'male', 'female'] as const)
+  gender?: 'unknown' | 'male' | 'female';
+
+  @ApiPropertyOptional({ example: '1990-01-01' })
+  @IsOptional()
+  @IsString()
+  birthday?: string;
+}
+
+export class AdminUserListQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number;
+}
+
 export class AdminKycAuditDto {
   @ApiProperty({ enum: ['pass', 'reject'] })
   @IsEnum(['pass', 'reject'] as const)

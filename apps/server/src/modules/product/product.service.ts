@@ -11,6 +11,7 @@ import { UserEntity } from '../../database/entities/user.entity';
 import { OrderFeedConfigService } from './order-feed-config.service';
 import {
   AdminCreateCategoryDto,
+  AdminUpdateCategoryDto,
   AdminCreateProductDto,
   AdminProductListQueryDto,
   AdminUpdateProductDto,
@@ -274,6 +275,26 @@ export class ProductService implements OnModuleInit {
     return {
       id: Number(saved.id),
       name: saved.name,
+    };
+  }
+
+  async adminUpdateCategory(id: string, dto: AdminUpdateCategoryDto) {
+    const category = await this.categories.findOne({ where: { id } });
+    if (!category) throw new NotFoundException('分类不存在');
+    if (dto.name != null) category.name = dto.name;
+    if (dto.icon != null) category.icon = dto.icon;
+    if (dto.fundRatio != null) category.fundRatio = String(dto.fundRatio);
+    if (dto.sort != null) category.sort = dto.sort;
+    if (dto.status != null) category.status = dto.status;
+    await this.categories.save(category);
+    return {
+      id: Number(category.id),
+      parentId: Number(category.parentId),
+      name: category.name,
+      icon: category.icon,
+      fundRatio: category.fundRatio ? Number(category.fundRatio) : null,
+      sort: category.sort,
+      status: category.status,
     };
   }
 

@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: '/agreement/:type',
+    name: 'Agreement',
+    component: () => import('@/views/auth/Agreement.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/kyc',
     name: 'Kyc',
     component: () => import('@/views/auth/Kyc.vue'),

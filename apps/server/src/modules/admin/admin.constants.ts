@@ -5,6 +5,7 @@ export const ADMIN_PERMISSION_OPTIONS = [
   { key: 'aftersale:manage', label: '售后管理' },
   { key: 'review:manage', label: '评价管理' },
   { key: 'user:view', label: '用户管理' },
+  { key: 'sms:config', label: '短信配置' },
   { key: 'kyc:audit', label: '实名审核' },
   { key: 'fund:config', label: '贡献金配置' },
   { key: 'withdraw:audit', label: '提现审核' },
@@ -45,6 +46,8 @@ export function resolveAdminPermission(path: string): AdminPermission | null {
   if (normalized.startsWith('/api/admin/orders')) return 'order:manage';
   if (normalized.startsWith('/api/admin/aftersale')) return 'aftersale:manage';
   if (normalized.startsWith('/api/admin/reviews')) return 'review:manage';
+  if (normalized.startsWith('/api/admin/users')) return 'user:view';
+  if (normalized.startsWith('/api/admin/sms')) return 'sms:config';
   if (normalized.startsWith('/api/admin/kyc')) return 'kyc:audit';
   if (normalized.startsWith('/api/admin/finance')) return 'finance:view';
   if (normalized.startsWith('/api/admin/coupons')) return 'coupon:manage';

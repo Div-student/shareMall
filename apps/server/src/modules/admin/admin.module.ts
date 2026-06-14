@@ -19,6 +19,7 @@ import { AdminAuthGuard } from './admin-auth.guard';
 import { AdminAuthController } from './admin-auth.controller';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminOperationLogInterceptor } from './admin-operation-log.interceptor';
+import { AdminSmsController } from './admin-sms.controller';
 import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { OperationLogController } from './operation-log.controller';
@@ -48,6 +49,7 @@ import { RoleService } from './role.service';
     DashboardController,
     RoleController,
     AdminAccountController,
+    AdminSmsController,
     OperationLogController,
   ],
   providers: [

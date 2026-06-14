@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard';
 import { AddressService } from './address.service';
-import { CreateAddressDto, SubmitKycDto } from './dto';
+import { CreateAddressDto, SubmitKycDto, UpdateProfileDto } from './dto';
 import { KycService } from './kyc.service';
 import { UserService } from './user.service';
 
@@ -26,8 +26,8 @@ export class UserController {
 
   @Put('user/profile')
   @ApiOperation({ summary: '更新个人信息' })
-  updateProfile(@Body() _body: unknown) {
-    return { success: true };
+  updateProfile(@CurrentUser('sub') userId: string, @Body() dto: UpdateProfileDto) {
+    return this.userService.updateProfile(userId, dto);
   }
 
   @Get('user/address')

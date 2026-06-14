@@ -10,6 +10,7 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 const loading = ref(false);
+const agreed = ref(false);
 
 function resolveInviteCode() {
   const code = route.query.inviteCode;
@@ -25,6 +26,10 @@ const form = reactive({
 const { countdown, send: sendCode } = useSmsCode('register');
 
 async function onSubmit() {
+  if (!agreed.value) {
+    showToast('请先阅读并同意用户协议与隐私政策');
+    return;
+  }
   if (!/^1\d{10}$/.test(form.phone)) {
     showToast('请输入正确的手机号');
     return;
@@ -71,9 +76,33 @@ async function onSubmit() {
         />
         <van-field v-model="form.inviteCode" label="邀请码" placeholder="请输入邀请码（选填）" />
       </van-cell-group>
+      <div class="agree-row">
+        <van-checkbox v-model="agreed" icon-size="16px" />
+        <span>
+          我已阅读并同意
+          <router-link to="/agreement/user" class="link">《用户服务协议》</router-link>
+          和
+          <router-link to="/agreement/privacy" class="link">《隐私政策》</router-link>
+        </span>
+      </div>
       <div style="margin: 16px">
         <van-button round block type="primary" native-type="submit" :loading="loading">注册</van-button>
       </div>
     </van-form>
   </div>
 </template>
+
+<style scoped>
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 16px 0;
+  font-size: 12px;
+  color: #646566;
+  line-height: 1.5;
+}
+.link {
+  color: #1989fa;
+}
+</style>

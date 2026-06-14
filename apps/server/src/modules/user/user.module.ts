@@ -6,6 +6,7 @@ import { InviteRelationEntity } from '../../database/entities/invite-relation.en
 import { UserKycEntity } from '../../database/entities/user-kyc.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AdminKycController } from './admin-kyc.controller';
+import { AdminUserController } from './admin-user.controller';
 import { AddressService } from './address.service';
 import { KycService } from './kyc.service';
 import { UserController } from './user.controller';
@@ -21,8 +22,8 @@ import { UserService } from './user.service';
       UserKycEntity,
     ]),
   ],
-  controllers: [UserController, AdminKycController],
+  controllers: [UserController, AdminKycController, AdminUserController],
   providers: [UserService, AddressService, KycService],
-  exports: [AddressService, KycService],
+  exports: [UserService, AddressService, KycService],
 })
 export class UserModule {}

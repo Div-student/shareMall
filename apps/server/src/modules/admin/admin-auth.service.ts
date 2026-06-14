@@ -32,6 +32,7 @@ const DEFAULT_ROLES: Array<Pick<RoleEntity, 'name' | 'permissions' | 'dataScope'
       'notification:manage',
       'checkin:monitor',
       'user:view',
+      'sms:config',
       'kyc:audit',
       'fund:config',
       'withdraw:audit',

@@ -12,10 +12,12 @@ const activeMenu = computed(() => route.path);
 const menuItems = [
   { path: '/dashboard', title: '数据看板', permission: 'dashboard:view' },
   { path: '/products', title: '商品管理', permission: 'product:manage' },
+  { path: '/categories', title: '分类管理', permission: 'product:manage' },
   { path: '/orders', title: '订单管理', permission: 'order:manage' },
   { path: '/aftersale', title: '售后管理', permission: 'aftersale:manage' },
   { path: '/reviews', title: '评价管理', permission: 'review:manage' },
   { path: '/users', title: '用户管理', permission: 'user:view' },
+  { path: '/sms', title: '短信配置', permission: 'sms:config' },
   { path: '/kyc-audit', title: '实名审核', permission: 'kyc:audit' },
   { path: '/fund-config', title: '贡献金配置', permission: 'fund:config' },
   { path: '/nft', title: '数字藏品', permission: 'nft:manage' },

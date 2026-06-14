@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AdminCreateCategoryDto,
+  AdminUpdateCategoryDto,
   AdminCreateProductDto,
   AdminProductListQueryDto,
   AdminUpdateProductDto,
@@ -48,5 +49,11 @@ export class AdminProductController {
   @ApiOperation({ summary: '新增分类' })
   createCategory(@Body() dto: AdminCreateCategoryDto) {
     return this.productService.adminCreateCategory(dto);
+  }
+
+  @Put('categories/:id')
+  @ApiOperation({ summary: '更新分类' })
+  updateCategory(@Param('id') id: string, @Body() dto: AdminUpdateCategoryDto) {
+    return this.productService.adminUpdateCategory(id, dto);
   }
 }
