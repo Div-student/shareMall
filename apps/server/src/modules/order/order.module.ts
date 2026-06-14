@@ -11,6 +11,9 @@ import { ProductEntity } from '../../database/entities/product.entity';
 import { SkuEntity } from '../../database/entities/sku.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FundModule } from '../fund/fund.module';
+import { MessageModule } from '../message/message.module';
+import { OperationsModule } from '../operations/operations.module';
+import { ReviewModule } from '../review/review.module';
 import { AdminOrderController } from './admin-order.controller';
 import { CartController } from './cart.controller';
 import { CartService } from './cart.service';
@@ -21,6 +24,9 @@ import { OrderService } from './order.service';
 @Module({
   imports: [
     FundModule,
+    MessageModule,
+    ReviewModule,
+    OperationsModule,
     TypeOrmModule.forFeature([
       CartItemEntity,
       OrderEntity,

@@ -14,6 +14,12 @@ export class ProductController {
     return this.productService.getHome();
   }
 
+  @Get('categories')
+  @ApiOperation({ summary: '分类树（一级 + 二级）' })
+  categories() {
+    return this.productService.listCategories();
+  }
+
   @Get('products')
   @ApiOperation({ summary: '商品列表' })
   list(@Query() query: ProductListQueryDto) {

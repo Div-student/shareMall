@@ -1,7 +1,7 @@
 import { Body, Controller, Ip, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, LoginSmsDto, RegisterDto, SendSmsDto } from './dto';
+import { LoginDto, LoginSmsDto, RegisterDto, ResetPasswordDto, SendSmsDto } from './dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -30,5 +30,11 @@ export class AuthController {
   @ApiOperation({ summary: '短信验证码登录' })
   loginSms(@Body() dto: LoginSmsDto) {
     return this.authService.loginSms(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: '重置密码' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

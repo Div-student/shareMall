@@ -4,14 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { FundAccountEntity } from '../../database/entities/fund-account.entity';
 import { CheckinPlanEntity } from '../../database/entities/checkin-plan.entity';
 import { CheckinRecordEntity } from '../../database/entities/checkin-record.entity';
 import { FundRecordEntity } from '../../database/entities/fund-record.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FundConfigService } from './fund-config.service';
-import { FundRecordQueryDto } from './dto';
+import { FundRecordQueryDto, CheckinMonitorQueryDto } from './dto';
 
 interface RecordInput {
   assetType: FundRecordEntity['assetType'];
@@ -266,6 +266,38 @@ export class FundService {
         status: r.status,
         cashoutAmount: r.cashoutAmount,
       })),
+    };
+  }
+
+  async adminCheckinMonitor(query: CheckinMonitorQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const where: Partial<CheckinPlanEntity> = {};
+    if (query.status && query.status !== 'all') {
+      where.status = query.status;
+    }
+
+    const [rows, total] = await this.plans.findAndCount({
+      where,
+      order: { id: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    const userIds = [...new Set(rows.map((p) => p.userId))];
+    const users = userIds.length ? await this.users.find({ where: { id: In(userIds) } }) : [];
+    const userMap = new Map(users.map((u) => [u.id, u.phone]));
+
+    return {
+      list: rows.map((plan) => ({
+        ...this.toPlanVo(plan),
+        userId: Number(plan.userId),
+        userPhone: userMap.get(plan.userId) ?? '',
+        progress: `${plan.signedDays}/${plan.totalDays}`,
+      })),
+      total,
+      page,
+      pageSize,
     };
   }
 

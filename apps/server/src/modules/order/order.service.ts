@@ -13,6 +13,9 @@ import { SkuEntity } from '../../database/entities/sku.entity';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FundConfigService } from '../fund/fund-config.service';
 import { FundService } from '../fund/fund.service';
+import { CouponService } from '../operations/coupon.service';
+import { MessageService } from '../message/message.service';
+import { ReviewService } from '../review/review.service';
 import { AdminOrderListQueryDto, CreateOrderDto, OrderItemInputDto, OrderListQueryDto, OrderPreviewDto, PayOrderDto } from './dto';
 
 const DEFAULT_FUND_RATIO = 0.1;
@@ -37,9 +40,11 @@ interface CalcResult {
   totalAmount: number;
   fundDeductMax: number;
   fundDeductAmount: number;
+  couponAmount: number;
   freight: number;
   payAmount: number;
   accruedFund: number;
+  userCouponId?: string;
   lines: ResolvedLine[];
 }
 
@@ -49,6 +54,9 @@ export class OrderService {
     private readonly dataSource: DataSource,
     private readonly fundService: FundService,
     private readonly fundConfig: FundConfigService,
+    private readonly messageService: MessageService,
+    private readonly reviewService: ReviewService,
+    private readonly couponService: CouponService,
     @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
     @InjectRepository(OrderItemEntity) private readonly orderItems: Repository<OrderItemEntity>,
     @InjectRepository(PaymentEntity) private readonly payments: Repository<PaymentEntity>,
@@ -66,6 +74,7 @@ export class OrderService {
       totalAmount: calc.totalAmount,
       fundDeductMax: calc.fundDeductMax,
       fundDeductAmount: calc.fundDeductAmount,
+      couponAmount: calc.couponAmount,
       freight: calc.freight,
       payAmount: calc.payAmount,
       accruedFund: calc.accruedFund,
@@ -101,7 +110,7 @@ export class OrderService {
           addressSnapshot: this.toAddressSnapshot(address),
           totalAmount: calc.totalAmount,
           fundDeductAmount: calc.fundDeductAmount,
-          couponAmount: 0,
+          couponAmount: calc.couponAmount,
           freight: calc.freight,
           payAmount: calc.payAmount,
           accruedFund: calc.accruedFund,
@@ -131,6 +140,10 @@ export class OrderService {
           order.id,
           `订单抵扣 ${orderNo}`,
         );
+      }
+
+      if (calc.userCouponId) {
+        await this.couponService.markUsed(calc.userCouponId, order.id, manager);
       }
 
       await manager.getRepository(CartItemEntity).delete({
@@ -272,6 +285,14 @@ export class OrderService {
         fundCredited = accruedAmount;
       }
 
+      void this.messageService.send({
+        userId: locked.userId,
+        type: 'order',
+        title: '订单已完成',
+        content: `您的订单 ${locked.orderNo} 已确认收货，欢迎评价。`,
+        link: `/orders/${locked.id}/review`,
+      });
+
       return { order: locked, fundCredited };
     });
   }
@@ -325,6 +346,14 @@ export class OrderService {
     order.status = 'shipped';
     order.shippedAt = new Date();
     await this.orders.save(order);
+
+    void this.messageService.send({
+      userId: order.userId,
+      type: 'order',
+      title: '订单已发货',
+      content: `您的订单 ${order.orderNo} 已发货，请注意查收。`,
+      link: `/orders/${order.id}`,
+    });
 
     return { success: true, orderNo: order.orderNo, status: order.status, shippedAt: order.shippedAt };
   }
@@ -384,15 +413,27 @@ export class OrderService {
       if (fundDeductAmount < 0) fundDeductAmount = 0;
     }
 
-    const payAmount = this.roundMoney(Math.max(totalAmount - fundDeductAmount + FREIGHT, 0));
+    let couponAmount = 0;
+    let userCouponId: string | undefined;
+    if (dto.couponId) {
+      const resolved = await this.couponService.resolveForOrder(userId, dto.couponId, totalAmount);
+      couponAmount = resolved.couponAmount;
+      userCouponId = resolved.userCoupon.id;
+    }
+
+    const payAmount = this.roundMoney(
+      Math.max(totalAmount - fundDeductAmount - couponAmount + FREIGHT, 0),
+    );
 
     return {
       totalAmount,
       fundDeductMax,
       fundDeductAmount,
+      couponAmount,
       freight: FREIGHT,
       payAmount,
       accruedFund,
+      userCouponId,
       lines,
     };
   }
@@ -461,6 +502,7 @@ export class OrderService {
 
   private async toOrderDetailVo(order: OrderEntity) {
     const items = await this.orderItems.find({ where: { orderId: order.id } });
+    const reviewed = await this.reviewService.isOrderReviewed(order.id);
     return {
       id: Number(order.id),
       orderNo: order.orderNo,
@@ -477,6 +519,7 @@ export class OrderService {
       shippedAt: order.shippedAt,
       receivedAt: order.receivedAt,
       createdAt: order.createdAt,
+      reviewed,
       items: items.map((i) => ({
         id: Number(i.id),
         productId: Number(i.productId),

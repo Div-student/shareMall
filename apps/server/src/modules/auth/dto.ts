@@ -57,3 +57,19 @@ export class LoginSmsDto {
   @IsString()
   smsCode!: string;
 }
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: '13800138000' })
+  @IsString()
+  @Length(11, 11)
+  phone!: string;
+
+  @ApiProperty()
+  @IsString()
+  smsCode!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(6)
+  newPassword!: string;
+}

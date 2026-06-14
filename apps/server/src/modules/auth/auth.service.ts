@@ -12,7 +12,7 @@ import { UserEntity } from '../../database/entities/user.entity';
 import { FundAccountEntity } from '../../database/entities/fund-account.entity';
 import { InviteRelationEntity } from '../../database/entities/invite-relation.entity';
 import { SmsService } from '../../common/sms/sms.service';
-import { LoginDto, LoginSmsDto, RegisterDto, SendSmsDto } from './dto';
+import { LoginDto, LoginSmsDto, RegisterDto, ResetPasswordDto, SendSmsDto } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +28,10 @@ export class AuthService {
     if (dto.scene === 'register') {
       const exists = await this.users.findOne({ where: { phone: dto.phone } });
       if (exists) throw new BadRequestException('该手机号已注册');
+    }
+    if (dto.scene === 'reset') {
+      const exists = await this.users.findOne({ where: { phone: dto.phone } });
+      if (!exists) throw new BadRequestException('该手机号未注册');
     }
     await this.sms.send(dto.phone, dto.scene);
     return { sent: true };
@@ -97,6 +101,18 @@ export class AuthService {
     this.ensureNotFrozen(user);
     await this.users.update(user.id, { lastLoginAt: new Date() });
     return this.issueToken(user);
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    if (!this.sms.verify(dto.phone, 'reset', dto.smsCode)) {
+      throw new BadRequestException('验证码错误或已过期');
+    }
+    const user = await this.users.findOne({ where: { phone: dto.phone } });
+    if (!user) throw new BadRequestException('该手机号未注册');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.users.update(user.id, { passwordHash });
+    return { success: true };
   }
 
   private ensureNotFrozen(user: UserEntity) {

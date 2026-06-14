@@ -191,6 +191,14 @@ paths:
       responses:
         '200': { description: 返回 banners/categories/products }
 
+  /api/categories:
+    get:
+      tags: [Product]
+      summary: 分类树（一级 + 二级）
+      security: []
+      responses:
+        '200': { description: 返回 list 数组，每项含 id/name/icon/children }
+
   /api/products:
     get:
       tags: [Product]
@@ -198,6 +206,7 @@ paths:
       security: []
       parameters:
         - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: parentCategoryId, in: query, schema: { type: integer }, description: 一级分类 ID，含其直接子分类下的商品 }
         - { name: keyword, in: query, schema: { type: string } }
         - { name: sort, in: query, schema: { type: string, enum: [default, price_asc, price_desc, sales] } }
         - { name: page, in: query, schema: { type: integer, default: 1 } }
@@ -630,6 +639,115 @@ paths:
       summary: 我的邀请
       responses:
         '200': { description: 含 inviteCode/invitedCount/list }
+
+  /api/messages:
+    get:
+      tags: [User]
+      summary: 消息列表
+      parameters:
+        - { name: type, in: query, schema: { type: string, enum: [system, order, trade, all] } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 分页消息列表 }
+
+  /api/messages/unread-count:
+    get:
+      tags: [User]
+      summary: 未读消息数
+      responses:
+        '200': { description: '{ count }' }
+
+  /api/messages/read-all:
+    post:
+      tags: [User]
+      summary: 全部标记已读
+      responses:
+        '200': { description: OK }
+
+  /api/messages/{id}:
+    get:
+      tags: [User]
+      summary: 消息详情（自动已读）
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 消息详情 }
+
+  /api/messages/{id}/read:
+    post:
+      tags: [User]
+      summary: 标记已读
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+
+  /api/orders/{orderId}/review:
+    get:
+      tags: [Order]
+      summary: 查询订单是否已评价
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: '{ reviewed, review }' }
+    post:
+      tags: [Order]
+      summary: 提交订单评价
+      parameters:
+        - { name: orderId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, content]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                content: { type: string }
+                images: { type: array, items: { type: string } }
+                isAnonymous: { type: boolean }
+      responses:
+        '200': { description: 评价成功 }
+
+  /api/products/{productId}/reviews:
+    get:
+      tags: [Product]
+      summary: 商品评价列表（公开）
+      security: []
+      parameters:
+        - { name: productId, in: path, required: true, schema: { type: integer } }
+        - { name: page, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: 分页评价列表 }
+
+  /api/admin/reviews:
+    get:
+      tags: [Admin]
+      summary: 评价管理列表
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [shown, hidden, all] } }
+      responses:
+        '200': { description: 分页 }
+
+  /api/admin/reviews/{id}/audit:
+    post:
+      tags: [Admin]
+      summary: 审核评价（显示/隐藏）
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [shown, hidden] }
+                adminReply: { type: string }
+      responses:
+        '200': { description: OK }
 
   /api/withdraw/config:
     get:

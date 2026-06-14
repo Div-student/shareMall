@@ -5,6 +5,10 @@ import { BannerEntity } from '../../database/entities/banner.entity';
 import { CategoryEntity } from '../../database/entities/category.entity';
 import { ProductEntity } from '../../database/entities/product.entity';
 import { SkuEntity } from '../../database/entities/sku.entity';
+import { OrderEntity } from '../../database/entities/order.entity';
+import { OrderItemEntity } from '../../database/entities/order-item.entity';
+import { UserEntity } from '../../database/entities/user.entity';
+import { OrderFeedConfigService } from './order-feed-config.service';
 import {
   AdminCreateCategoryDto,
   AdminCreateProductDto,
@@ -23,6 +27,10 @@ export class ProductService implements OnModuleInit {
     @InjectRepository(CategoryEntity) private readonly categories: Repository<CategoryEntity>,
     @InjectRepository(SkuEntity) private readonly skus: Repository<SkuEntity>,
     @InjectRepository(BannerEntity) private readonly banners: Repository<BannerEntity>,
+    @InjectRepository(OrderItemEntity) private readonly orderItems: Repository<OrderItemEntity>,
+    @InjectRepository(OrderEntity) private readonly orders: Repository<OrderEntity>,
+    @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    private readonly orderFeedConfig: OrderFeedConfigService,
   ) {}
 
   async onModuleInit() {
@@ -60,6 +68,27 @@ export class ProductService implements OnModuleInit {
 
   async listProducts(query: ProductListQueryDto) {
     return this.findOnSaleProducts(query);
+  }
+
+  async listCategories() {
+    const all = await this.categories.find({
+      where: { status: 'show' },
+      order: { sort: 'DESC', id: 'ASC' },
+    });
+    const roots = all.filter((c) => c.parentId === '0');
+    return {
+      list: roots.map((root) => ({
+        id: Number(root.id),
+        name: root.name,
+        icon: root.icon,
+        children: all
+          .filter((c) => c.parentId === root.id)
+          .map((c) => ({
+            id: Number(c.id),
+            name: c.name,
+          })),
+      })),
+    };
   }
 
   async getProductDetail(id: string) {
@@ -100,8 +129,51 @@ export class ProductService implements OnModuleInit {
     };
   }
 
-  getOrderFeed(_id: string) {
-    return { list: [] };
+  async getOrderFeed(id: string) {
+    const product = await this.products.findOne({ where: { id, deletedAt: IsNull() } });
+    if (!product) throw new NotFoundException('商品不存在');
+
+    const rules = await this.orderFeedConfig.getRules();
+    if (!rules.enabled) return { list: [] };
+
+    const paidStatuses = ['paid', 'shipped', 'received', 'completed'];
+    const rows = await this.orderItems
+      .createQueryBuilder('oi')
+      .innerJoin(OrderEntity, 'o', 'o.id = oi.order_id')
+      .innerJoin(UserEntity, 'u', 'u.id = o.user_id')
+      .select('u.phone', 'phone')
+      .addSelect('o.created_at', 'createdAt')
+      .where('oi.product_id = :productId', { productId: id })
+      .andWhere('o.status IN (:...statuses)', { statuses: paidStatuses })
+      .orderBy('o.created_at', 'DESC')
+      .take(20)
+      .getRawMany<{ phone: string; createdAt: Date }>();
+
+    const list = rows.map((row) => ({
+      text: `用户${this.maskPhone(row.phone)}刚刚下单了本商品`,
+      time: row.createdAt,
+    }));
+
+    while (list.length < rules.minDisplay) {
+      const template = rules.mockTemplates[list.length % rules.mockTemplates.length] ?? rules.mockTemplates[0];
+      list.push({
+        text: template.replace('{phone}', this.randomMaskedPhone()),
+        time: new Date(Date.now() - (list.length + 1) * 60000),
+      });
+    }
+
+    return { list: list.slice(0, rules.minDisplay) };
+  }
+
+  private maskPhone(phone: string) {
+    if (!phone || phone.length < 7) return '***';
+    return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
+  }
+
+  private randomMaskedPhone() {
+    const prefix = ['138', '139', '158', '186'][Math.floor(Math.random() * 4)];
+    const suffix = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    return `${prefix}****${suffix}`;
   }
 
   async adminListProducts(query: AdminProductListQueryDto) {
@@ -215,6 +287,13 @@ export class ProductService implements OnModuleInit {
 
     if (query.categoryId) {
       qb.andWhere('p.category_id = :categoryId', { categoryId: String(query.categoryId) });
+    } else if (query.parentCategoryId) {
+      const children = await this.categories.find({
+        where: { parentId: String(query.parentCategoryId), status: 'show' },
+        select: ['id'],
+      });
+      const categoryIds = [String(query.parentCategoryId), ...children.map((c) => c.id)];
+      qb.andWhere('p.category_id IN (:...categoryIds)', { categoryIds });
     }
     if (query.keyword) {
       qb.andWhere('p.title LIKE :keyword', { keyword: `%${query.keyword}%` });
@@ -305,6 +384,17 @@ export class ProductService implements OnModuleInit {
       this.categories.create({ name: '美妆', icon: 'https://picsum.photos/seed/cat2/80', sort: 9 }),
       this.categories.create({ name: '家居', icon: 'https://picsum.photos/seed/cat3/80', sort: 8 }),
       this.categories.create({ name: '食品', icon: 'https://picsum.photos/seed/cat4/80', sort: 7 }),
+    ]);
+
+    await this.categories.save([
+      this.categories.create({ name: '手机', parentId: categories[0].id, sort: 2 }),
+      this.categories.create({ name: '耳机', parentId: categories[0].id, sort: 1 }),
+      this.categories.create({ name: '护肤', parentId: categories[1].id, sort: 2 }),
+      this.categories.create({ name: '彩妆', parentId: categories[1].id, sort: 1 }),
+      this.categories.create({ name: '灯具', parentId: categories[2].id, sort: 2 }),
+      this.categories.create({ name: '收纳', parentId: categories[2].id, sort: 1 }),
+      this.categories.create({ name: '零食', parentId: categories[3].id, sort: 2 }),
+      this.categories.create({ name: '饮品', parentId: categories[3].id, sort: 1 }),
     ]);
 
     await this.banners.save([

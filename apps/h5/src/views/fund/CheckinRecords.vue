@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fetchCheckinRecords } from '@/api/fund';
 import { useFundStore } from '@/stores/fund';
@@ -45,6 +45,7 @@ async function load() {
 }
 
 onMounted(load);
+onActivated(load);
 </script>
 
 <template>

@@ -122,8 +122,16 @@ else
   fail "7b. 支付后 pending 不应增加 (pending=$P_AFTER_PAY)"
 fi
 
-# 8. 后台发货
-SHIP=$(curl -s -X POST "$BASE/admin/orders/$ORDER_ID/ship" -H 'Content-Type: application/json')
+# 8. 后台发货（需后台登录）
+ADMIN_LOGIN=$(curl -s -X POST "$BASE/admin/auth/login" -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin123"}')
+ADMIN_TOKEN=$(echo "$ADMIN_LOGIN" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('token','') if d.get('code')==0 else '')" 2>/dev/null || echo "")
+ADMIN_AUTH=""
+if [[ -n "$ADMIN_TOKEN" ]]; then
+  ADMIN_AUTH="Authorization: Bearer $ADMIN_TOKEN"
+fi
+
+SHIP=$(curl -s -X POST "$BASE/admin/orders/$ORDER_ID/ship" -H 'Content-Type: application/json' ${ADMIN_AUTH:+-H "$ADMIN_AUTH"})
 if [[ "$(code "$SHIP")" == "0" ]]; then
   pass "8. 后台发货成功"
 else
@@ -175,7 +183,7 @@ if python3 -c "import sys; sys.exit(0 if float('$P_TIER') >= 90 else 1)"; then
   pass "11. 待兑现已达 90 档 (pending=$P_TIER)"
 else
   TOPUP=$(python3 -c "import sys; print(round(90 - float('$P_TIER') + 0.01, 2))")
-  ACCRUE=$(curl -s -X POST "$BASE/admin/fund/accrue" -H 'Content-Type: application/json' \
+  ACCRUE=$(curl -s -X POST "$BASE/admin/fund/accrue" -H 'Content-Type: application/json' ${ADMIN_AUTH:+-H "$ADMIN_AUTH"} \
     -d "{\"phone\":\"$PHONE\",\"amount\":$TOPUP,\"remark\":\"验收补足至90档\"}")
   FUND=$(curl -s "$BASE/fund/account" -H "$AUTH")
   P_TIER=$(echo "$FUND" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',d)['pendingFund'])")

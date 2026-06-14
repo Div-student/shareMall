@@ -19,6 +19,12 @@ export class ProductListQueryDto {
   @IsInt()
   categoryId?: number;
 
+  @ApiPropertyOptional({ description: '一级分类 ID，含其直接子分类下的商品' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  parentCategoryId?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

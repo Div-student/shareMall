@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import type { ProductDetail } from '@sharemall/shared';
 import { addToCart } from '@/api/cart';
-import { fetchProductDetail } from '@/api/product';
+import { fetchProductDetail, fetchProductOrderFeed } from '@/api/product';
 import { useCartStore } from '@/stores/cart';
 
 const route = useRoute();
@@ -12,6 +12,7 @@ const router = useRouter();
 const cartStore = useCartStore();
 const loading = ref(true);
 const product = ref<ProductDetail | null>(null);
+const orderFeedText = ref('实时下单动态：加载中...');
 const selectedSkuId = ref<number | null>(null);
 
 const displayPrice = computed(() => {
@@ -55,6 +56,10 @@ onMounted(async () => {
     if (product.value?.skus.length) {
       selectedSkuId.value = product.value.skus[0].id;
     }
+    const feed = await fetchProductOrderFeed(route.params.id as string).catch(() => ({ list: [] }));
+    orderFeedText.value = feed.list.length
+      ? feed.list.map((item) => item.text).join('　　')
+      : '实时下单动态：暂无数据';
   } finally {
     loading.value = false;
   }
@@ -82,7 +87,7 @@ onMounted(async () => {
         <van-cell title="可获贡献金" :value="String(product.fundAmount)" />
         <van-cell title="配送" value="包邮" />
       </van-cell-group>
-      <van-notice-bar scrollable text="实时下单动态：暂无数据" />
+      <van-notice-bar scrollable :text="orderFeedText" />
       <div class="detail" v-html="product.detailHtml" />
 
       <van-submit-bar

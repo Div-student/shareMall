@@ -92,3 +92,24 @@ export class AdminAccrueDto {
   @IsEnum(['pending_fund', 'available_fund', 'withdrawable_cash'] as const)
   assetType?: 'pending_fund' | 'available_fund' | 'withdrawable_cash';
 }
+
+export class CheckinMonitorQueryDto {
+  @ApiPropertyOptional({ enum: ['all', 'active', 'completed', 'terminated'], default: 'active' })
+  @IsOptional()
+  @IsEnum(['all', 'active', 'completed', 'terminated'] as const)
+  status?: 'all' | 'active' | 'completed' | 'terminated';
+
+  @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number;
+}

@@ -6,6 +6,7 @@ import type { OrderPreview, UserAddress } from '@sharemall/shared';
 import { fetchAddresses } from '@/api/address';
 import { createOrder, previewOrder, type OrderItemInput } from '@/api/order';
 import { fetchFundAccount } from '@/api/fund';
+import { fetchMyCoupons } from '@/api/operations';
 
 const CHECKOUT_ADDRESS_KEY = 'checkoutAddressId';
 
@@ -25,6 +26,9 @@ const addresses = ref<UserAddress[]>([]);
 const address = ref<UserAddress | null>(null);
 const preview = ref<OrderPreview | null>(null);
 const availableFund = ref(0);
+const myCoupons = ref<Array<{ id: number; coupon: { name: string; minAmount: number } | null }>>([]);
+const selectedCouponId = ref<number | null>(null);
+const showCouponPicker = ref(false);
 const isFirstActivation = ref(true);
 
 function pickAddress(list: UserAddress[]) {
@@ -43,6 +47,7 @@ async function loadPreview() {
     items: items.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
     addressId: address.value.id,
     useFund: useFund.value,
+    couponId: selectedCouponId.value ?? undefined,
   });
 }
 
@@ -56,6 +61,11 @@ async function loadAddresses(keepCurrent = false) {
     address.value = matched ?? pickAddress(addrRes.list);
   }
   return addrRes.list;
+}
+
+async function loadMyCoupons() {
+  const couponRes = await fetchMyCoupons().catch(() => ({ list: [] }));
+  myCoupons.value = couponRes.list.filter((item) => item.status === 'unused' && item.coupon);
 }
 
 function selectAddress(addr: UserAddress) {
@@ -90,7 +100,7 @@ async function init() {
     }
     items.value = JSON.parse(raw) as CheckoutItem[];
 
-    const [addrList, fundRes] = await Promise.all([loadAddresses(), fetchFundAccount()]);
+    const [addrList, fundRes] = await Promise.all([loadAddresses(), fetchFundAccount(), loadMyCoupons()]);
     availableFund.value = fundRes.availableFund;
 
     if (!addrList.length) {
@@ -114,6 +124,21 @@ watch(useFund, () => {
   void loadPreview();
 });
 
+function selectCoupon(id: number | null) {
+  selectedCouponId.value = id;
+  showCouponPicker.value = false;
+  void loadPreview();
+}
+
+async function openCouponPicker() {
+  await loadMyCoupons();
+  if (!myCoupons.value.length) {
+    showToast('暂无可用优惠券');
+    return;
+  }
+  showCouponPicker.value = true;
+}
+
 async function submitOrder() {
   if (!address.value || !items.value.length) return;
   submitting.value = true;
@@ -124,6 +149,7 @@ async function submitOrder() {
       addressId: address.value.id,
       useFund: useFund.value,
       fundAmount: preview.value?.fundDeductAmount,
+      couponId: selectedCouponId.value ?? undefined,
     });
     sessionStorage.removeItem('checkoutItems');
     router.replace(`/order/pay/${result.orderId}`);
@@ -135,7 +161,7 @@ async function submitOrder() {
 
 async function refreshOnReturn() {
   if (!items.value.length) return;
-  await loadAddresses(true);
+  await Promise.all([loadAddresses(true), loadMyCoupons()]);
   await loadPreview();
 }
 
@@ -185,6 +211,17 @@ onActivated(() => {
           title="贡献金抵扣"
           :value="`-¥${preview?.fundDeductAmount.toFixed(2) ?? '0.00'}`"
         />
+        <van-cell
+          title="优惠券"
+          :value="selectedCouponId ? myCoupons.find((c) => c.id === selectedCouponId)?.coupon?.name ?? '已选' : (myCoupons.length ? '选择优惠券' : '暂无可用')"
+          is-link
+          @click="openCouponPicker"
+        />
+        <van-cell
+          v-if="(preview?.couponAmount ?? 0) > 0"
+          title="优惠券抵扣"
+          :value="`-¥${preview?.couponAmount?.toFixed(2)}`"
+        />
         <van-cell title="运费" :value="`¥${preview?.freight.toFixed(2) ?? '0.00'}`" />
         <van-cell title="预计可获贡献金（确认收货后到账）" :value="String(preview?.accruedFund ?? 0)" />
       </van-cell-group>
@@ -218,6 +255,21 @@ onActivated(() => {
         <div class="picker-footer">
           <van-button block plain type="primary" @click="goManageAddress">新增 / 管理地址</van-button>
         </div>
+      </div>
+    </van-popup>
+
+    <van-popup v-model:show="showCouponPicker" position="bottom" round>
+      <div style="padding: 16px">
+        <div style="text-align: center; font-weight: 600; margin-bottom: 12px">选择优惠券</div>
+        <van-cell title="不使用优惠券" is-link @click="selectCoupon(null)" />
+        <van-cell
+          v-for="c in myCoupons"
+          :key="c.id"
+          :title="c.coupon?.name ?? '优惠券'"
+          :label="`满${c.coupon?.minAmount ?? 0}可用`"
+          is-link
+          @click="selectCoupon(c.id)"
+        />
       </div>
     </van-popup>
   </div>

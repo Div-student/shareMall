@@ -2,7 +2,7 @@ import { onUnmounted, ref } from 'vue';
 import { showToast } from 'vant';
 import { sendSms } from '@/api/auth';
 
-export function useSmsCode(scene: 'register' | 'login') {
+export function useSmsCode(scene: 'register' | 'login' | 'reset') {
   const countdown = ref(0);
   let timer: ReturnType<typeof setInterval> | null = null;
 

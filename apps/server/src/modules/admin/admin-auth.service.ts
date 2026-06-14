@@ -23,6 +23,14 @@ const DEFAULT_ROLES: Array<Pick<RoleEntity, 'name' | 'permissions' | 'dataScope'
       'product:manage',
       'order:manage',
       'aftersale:manage',
+      'review:manage',
+      'coupon:manage',
+      'campaign:manage',
+      'dict:manage',
+      'service:config',
+      'order-feed:config',
+      'notification:manage',
+      'checkin:monitor',
       'user:view',
       'kyc:audit',
       'fund:config',
@@ -33,7 +41,7 @@ const DEFAULT_ROLES: Array<Pick<RoleEntity, 'name' | 'permissions' | 'dataScope'
   },
   {
     name: '财务',
-    permissions: ['dashboard:view', 'fund:config', 'withdraw:audit', 'log:view'],
+    permissions: ['dashboard:view', 'finance:view', 'fund:config', 'withdraw:audit', 'log:view'],
     dataScope: 'all',
   },
 ];

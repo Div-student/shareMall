@@ -45,6 +45,7 @@ onMounted(async () => {
         :key="c.id"
         :icon="c.icon || 'apps-o'"
         :text="c.name"
+        @click="router.push({ path: '/category', query: { id: c.id } })"
       />
     </van-grid>
 

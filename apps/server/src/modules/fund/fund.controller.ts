@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard';
 import { FundConfigService } from './fund-config.service';
-import { AdminAccrueDto, AdminFundRulesDto, FundRecordQueryDto, SignCheckinDto, StartCheckinDto } from './dto';
+import { AdminAccrueDto, AdminFundRulesDto, CheckinMonitorQueryDto, FundRecordQueryDto, SignCheckinDto, StartCheckinDto } from './dto';
 import { FundService } from './fund.service';
 
 @ApiTags('Fund')
@@ -79,5 +79,11 @@ export class AdminFundController {
       dto.assetType ?? 'pending_fund',
       dto.remark,
     );
+  }
+
+  @Get('checkin-monitor')
+  @ApiOperation({ summary: '打卡监控' })
+  checkinMonitor(@Query() query: CheckinMonitorQueryDto) {
+    return this.fundService.adminCheckinMonitor(query);
   }
 }

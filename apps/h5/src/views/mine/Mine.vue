@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onActivated, onMounted } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCartStore } from '@/stores/cart';
 import { useFundStore } from '@/stores/fund';
 import { useUserStore } from '@/stores/user';
+import { fetchUnreadCount } from '@/api/message';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -12,6 +13,7 @@ const fundStore = useFundStore();
 const cartStore = useCartStore();
 const { userInfo, isLoggedIn } = storeToRefs(userStore);
 const { account } = storeToRefs(fundStore);
+const unreadCount = ref(0);
 
 const displayName = computed(() => {
   if (!isLoggedIn.value) return '未登录';
@@ -58,7 +60,15 @@ onActivated(refreshMine);
 
 async function refreshMine() {
   if (!isLoggedIn.value) return;
-  await Promise.all([userStore.refreshProfile(), fundStore.fetchAccount()]);
+  await Promise.all([
+    userStore.refreshProfile(),
+    fundStore.fetchAccount(),
+    fetchUnreadCount().then((res) => {
+      unreadCount.value = res.count;
+    }).catch(() => {
+      unreadCount.value = 0;
+    }),
+  ]);
 }
 </script>
 
@@ -94,9 +104,12 @@ async function refreshMine() {
     </van-grid>
 
     <van-cell-group inset>
+      <van-cell title="消息通知" is-link :value="unreadCount > 0 ? `${unreadCount}条未读` : ''" @click="isLoggedIn ? router.push('/messages') : goLogin()" />
       <van-cell title="实名认证" is-link :value="kycStatusLabel" @click="goKyc" />
       <van-cell title="收货地址" is-link @click="router.push('/mine/address')" />
       <van-cell title="我的邀请" is-link @click="isLoggedIn ? router.push('/mine/invite') : goLogin()" />
+      <van-cell title="我的优惠券" is-link @click="isLoggedIn ? router.push('/mine/coupons') : goLogin()" />
+      <van-cell title="帮助与客服" is-link @click="router.push('/support')" />
       <van-cell title="设置" is-link />
     </van-cell-group>
   </div>

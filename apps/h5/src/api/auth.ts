@@ -26,3 +26,7 @@ export function login(data: { phone: string; password: string }) {
 export function loginSms(data: { phone: string; smsCode: string }) {
   return request.post<unknown, AuthResult>('/auth/login-sms', data);
 }
+
+export function resetPassword(data: { phone: string; smsCode: string; newPassword: string }) {
+  return request.post<unknown, { success: boolean }>('/auth/reset-password', data);
+}

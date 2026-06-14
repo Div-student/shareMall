@@ -12,6 +12,10 @@ import { WithdrawModule } from './modules/withdraw/withdraw.module';
 import { AftersaleModule } from './modules/aftersale/aftersale.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { TaskModule } from './modules/task/task.module';
+import { MessageModule } from './modules/message/message.module';
+import { ReviewModule } from './modules/review/review.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { OperationsModule } from './modules/operations/operations.module';
 import { SmsModule } from './common/sms/sms.module';
 import { AuthCommonModule } from './common/auth/auth-common.module';
 import { HealthController } from './health.controller';
@@ -53,6 +57,10 @@ import { HealthController } from './health.controller';
     WithdrawModule,
     AftersaleModule,
     TaskModule,
+    MessageModule,
+    ReviewModule,
+    FinanceModule,
+    OperationsModule,
     AdminModule,
   ],
   controllers: [HealthController],

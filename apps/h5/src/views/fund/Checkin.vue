@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import { fetchCheckinPlan, signCheckin, startCheckin } from '@/api/fund';
@@ -19,16 +19,29 @@ const progressText = computed(() => {
 });
 
 onMounted(async () => {
-  await fundStore.fetchAccount();
-  const active = fundStore.account?.activePlan;
-  if (active) {
-    plan.value = await fetchCheckinPlan(active.id);
-  } else {
-    const reached = fundStore.account?.tiers.filter((t) => t.reached) ?? [];
-    selectedTier.value = reached.length ? reached[reached.length - 1].tier : null;
-  }
-  loading.value = false;
+  await initPage();
 });
+
+onActivated(async () => {
+  await initPage();
+});
+
+async function initPage() {
+  loading.value = true;
+  try {
+    await fundStore.fetchAccount();
+    const active = fundStore.account?.activePlan;
+    if (active) {
+      plan.value = await fetchCheckinPlan(active.id);
+    } else {
+      plan.value = null;
+      const reached = fundStore.account?.tiers.filter((t) => t.reached) ?? [];
+      selectedTier.value = reached.length ? reached[reached.length - 1].tier : null;
+    }
+  } finally {
+    loading.value = false;
+  }
+}
 
 async function onStart() {
   if (!selectedTier.value) {

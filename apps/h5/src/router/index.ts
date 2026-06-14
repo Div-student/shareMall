@@ -14,6 +14,12 @@ const routes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('@/views/auth/ResetPassword.vue'),
+    meta: { guest: true },
+  },
+  {
     path: '/kyc',
     name: 'Kyc',
     component: () => import('@/views/auth/Kyc.vue'),
@@ -31,6 +37,11 @@ const routes: RouteRecordRaw[] = [
     path: '/search',
     name: 'Search',
     component: () => import('@/views/search/Search.vue'),
+  },
+  {
+    path: '/category',
+    name: 'Category',
+    component: () => import('@/views/category/Category.vue'),
   },
   {
     path: '/product/:id',
@@ -73,6 +84,12 @@ const routes: RouteRecordRaw[] = [
     path: '/orders/:id',
     name: 'OrderDetail',
     component: () => import('@/views/order/OrderDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/orders/:id/review',
+    name: 'OrderReview',
+    component: () => import('@/views/order/Review.vue'),
     meta: { requiresAuth: true },
   },
 
@@ -132,6 +149,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/nft/trade/records',
+    name: 'NftTradeRecords',
+    component: () => import('@/views/nft/TradeRecords.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/nft/mine/:userNftId/sell',
     name: 'NftSell',
     component: () => import('@/views/nft/Sell.vue'),
@@ -175,6 +198,17 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/mine/coupons',
+    name: 'MineCoupons',
+    component: () => import('@/views/mine/Coupons.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/support',
+    name: 'Support',
+    component: () => import('@/views/support/Support.vue'),
+  },
+  {
     path: '/withdraw',
     name: 'Withdraw',
     component: () => import('@/views/mine/Withdraw.vue'),
@@ -204,6 +238,20 @@ const routes: RouteRecordRaw[] = [
     path: '/aftersale/:id',
     name: 'AftersaleDetail',
     component: () => import('@/views/order/AftersaleDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  // 消息通知
+  {
+    path: '/messages',
+    name: 'Messages',
+    component: () => import('@/views/messages/Messages.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/messages/:id',
+    name: 'MessageDetail',
+    component: () => import('@/views/messages/MessageDetail.vue'),
     meta: { requiresAuth: true },
   },
 ];

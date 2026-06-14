@@ -55,6 +55,21 @@ export interface ProductListItem {
   sales: number;
 }
 
+/** 商品列表排序 */
+export type ProductSort = 'default' | 'price_asc' | 'price_desc' | 'sales';
+
+/** 分类（列表项） */
+export interface CategoryItem {
+  id: number;
+  name: string;
+  icon?: string | null;
+}
+
+/** 分类树（一级 + 二级） */
+export interface CategoryTreeItem extends CategoryItem {
+  children: Pick<CategoryItem, 'id' | 'name'>[];
+}
+
 /** 商品 SKU */
 export interface ProductSku {
   id: number;
@@ -94,6 +109,7 @@ export interface OrderPreview {
   totalAmount: number;
   fundDeductMax: number;
   fundDeductAmount: number;
+  couponAmount?: number;
   freight: number;
   payAmount: number;
   accruedFund: number;
@@ -168,6 +184,7 @@ export interface OrderDetail extends Omit<OrderListItem, 'items'> {
     quantity: number;
     itemFund: number;
   }[];
+  reviewed?: boolean;
 }
 
 /** 打卡计划 */
@@ -188,6 +205,40 @@ export interface WithdrawRequest {
   amount: number;
   method: WithdrawMethod;
   accountInfo: Record<string, unknown>;
+}
+
+/** 用户消息 */
+export interface UserMessage {
+  id: number;
+  type: 'system' | 'order' | 'trade';
+  title: string;
+  content: string;
+  link?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+/** 订单评价 */
+export interface OrderReview {
+  id: number;
+  rating: number;
+  content: string;
+  images: string[];
+  isAnonymous: boolean;
+  status: 'shown' | 'hidden';
+  adminReply?: string | null;
+  createdAt: string;
+}
+
+/** 商品评价（公开列表） */
+export interface ProductReviewItem {
+  id: number;
+  rating: number;
+  content: string;
+  images: string[];
+  nickname: string;
+  adminReply?: string | null;
+  createdAt: string;
 }
 
 export type { OrderStatus };

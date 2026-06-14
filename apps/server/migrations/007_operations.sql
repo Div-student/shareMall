@@ -1,0 +1,62 @@
+-- P2 运营：优惠券、活动、字典
+
+CREATE TABLE IF NOT EXISTS `coupon` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(64) NOT NULL,
+  `type` ENUM('fixed','discount') NOT NULL DEFAULT 'fixed',
+  `value` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `min_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `total` INT UNSIGNED NOT NULL DEFAULT 0,
+  `claimed` INT UNSIGNED NOT NULL DEFAULT 0,
+  `used` INT UNSIGNED NOT NULL DEFAULT 0,
+  `status` ENUM('enabled','disabled') NOT NULL DEFAULT 'enabled',
+  `start_at` DATETIME DEFAULT NULL,
+  `end_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='优惠券模板';
+
+CREATE TABLE IF NOT EXISTS `user_coupon` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `coupon_id` BIGINT UNSIGNED NOT NULL,
+  `status` ENUM('unused','used','expired') NOT NULL DEFAULT 'unused',
+  `order_id` BIGINT UNSIGNED DEFAULT NULL,
+  `claimed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `used_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_status` (`user_id`,`status`),
+  KEY `idx_coupon` (`coupon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户优惠券';
+
+CREATE TABLE IF NOT EXISTS `campaign` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(128) NOT NULL,
+  `subtitle` VARCHAR(255) DEFAULT NULL,
+  `banner` VARCHAR(512) DEFAULT NULL,
+  `content` TEXT,
+  `type` ENUM('promotion','discount','nft','general') NOT NULL DEFAULT 'general',
+  `rule` JSON DEFAULT NULL,
+  `status` ENUM('draft','active','ended') NOT NULL DEFAULT 'draft',
+  `participant_count` INT UNSIGNED NOT NULL DEFAULT 0,
+  `start_at` DATETIME DEFAULT NULL,
+  `end_at` DATETIME DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='营销活动';
+
+CREATE TABLE IF NOT EXISTS `dict` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `group` VARCHAR(40) NOT NULL,
+  `code` VARCHAR(40) NOT NULL,
+  `label` VARCHAR(128) NOT NULL,
+  `sort` INT NOT NULL DEFAULT 0,
+  `status` ENUM('enabled','disabled') NOT NULL DEFAULT 'enabled',
+  `remark` VARCHAR(255) DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_group_code` (`group`,`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统字典';

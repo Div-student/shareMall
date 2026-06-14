@@ -47,6 +47,11 @@ function goAftersale() {
   router.push({ path: '/aftersale/apply', query: { orderId: String(order.value.id) } });
 }
 
+function goReview() {
+  if (!order.value) return;
+  router.push(`/orders/${order.value.id}/review`);
+}
+
 async function onReceive() {
   if (!order.value) return;
   try {
@@ -107,7 +112,7 @@ onActivated(loadOrder);
         <van-cell title="本单可获贡献金" :label="order.status === 'completed' ? '已到账' : '确认收货后到账'" :value="String(order.accruedFund)" />
       </van-cell-group>
 
-      <div v-if="order.status === 'unpaid' || order.status === 'shipped' || canApplyAftersale(order.status)" class="footer-bar">
+      <div v-if="order.status === 'unpaid' || order.status === 'shipped' || order.status === 'completed' || canApplyAftersale(order.status)" class="footer-bar">
         <van-button
           v-if="order.status === 'unpaid'"
           block
@@ -124,6 +129,21 @@ onActivated(loadOrder);
           @click="onReceive"
         >
           确认收货
+        </van-button>
+        <van-button
+          v-else-if="order.status === 'completed' && !order.reviewed"
+          block
+          type="primary"
+          @click="goReview"
+        >
+          去评价
+        </van-button>
+        <van-button
+          v-else-if="order.status === 'completed' && order.reviewed"
+          block
+          disabled
+        >
+          已评价
         </van-button>
         <van-button
           v-else-if="canApplyAftersale(order.status)"

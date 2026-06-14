@@ -61,6 +61,9 @@ async function onSubmit() {
           </template>
         </van-field>
       </van-cell-group>
+      <div v-if="mode === 'password'" class="forgot-row">
+        <span class="forgot-link" @click="router.push('/reset-password')">忘记密码？</span>
+      </div>
       <div style="margin: 16px">
         <van-button round block type="primary" native-type="submit" :loading="loading">登录</van-button>
         <van-button round block plain style="margin-top: 12px" @click="router.push('/register')">
@@ -70,3 +73,14 @@ async function onSubmit() {
     </van-form>
   </div>
 </template>
+
+<style scoped>
+.forgot-row {
+  text-align: right;
+  padding: 0 16px 8px;
+}
+.forgot-link {
+  color: #1989fa;
+  font-size: 13px;
+}
+</style>

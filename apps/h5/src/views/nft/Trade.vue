@@ -75,7 +75,8 @@ onMounted(load);
   <div class="page">
     <van-nav-bar title="二级交易市场" left-arrow @click-left="$router.back()">
       <template #right>
-        <span class="nav-link" @click="router.push('/nft/listings')">我的挂单</span>
+        <span class="nav-link" @click="router.push('/nft/trade/records')">记录</span>
+        <span class="nav-link" style="margin-left: 12px" @click="router.push('/nft/listings')">我的挂单</span>
       </template>
     </van-nav-bar>
 
