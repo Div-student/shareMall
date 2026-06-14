@@ -1,0 +1,87 @@
+# 生产环境 Docker Compose
+# 使用前：pnpm build && cp deploy/.env.production.example deploy/.env.production
+# 启动：docker compose --env-file deploy/.env.production -f docker-compose.prod.yml up -d --build
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: sharemall-mysql
+    restart: unless-stopped
+    env_file:
+      - deploy/.env.production
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-sharemall}
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./apps/server/migrations/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - sharemall
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: sharemall-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - sharemall
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: sharemall-server
+    restart: unless-stopped
+    env_file:
+      - deploy/.env.production
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sharemall
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sharemall-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      # HTTPS：挂载证书后取消注释
+      # - '443:443'
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./apps/h5/dist:/usr/share/nginx/h5:ro
+      - ./apps/admin/dist:/usr/share/nginx/admin:ro
+      # HTTPS 证书示例（Certbot 或云厂商证书）
+      # - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      - server
+    networks:
+      - sharemall
+
+networks:
+  sharemall:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
