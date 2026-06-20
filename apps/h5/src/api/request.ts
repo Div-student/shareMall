@@ -26,10 +26,14 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
+      const wasLoggedIn = !!localStorage.getItem('token');
       localStorage.removeItem('token');
       localStorage.removeItem('userInfo');
+      void import('@/stores/user').then(({ useUserStore }) => {
+        useUserStore().logout();
+      });
       const path = router.currentRoute.value.path;
-      if (path !== '/login' && path !== '/register') {
+      if (wasLoggedIn && path !== '/login' && path !== '/register') {
         router.push({ path: '/login', query: { redirect: path } });
       }
     }

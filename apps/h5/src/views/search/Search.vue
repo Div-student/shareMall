@@ -3,6 +3,8 @@ import { onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { ProductListItem, ProductSort } from '@sharemall/shared';
 import { fetchProducts } from '@/api/product';
+import SmAppHeader from '@/components/shop/SmAppHeader.vue';
+import SmProductCard from '@/components/shop/SmProductCard.vue';
 
 const HISTORY_KEY = 'search_history';
 const MAX_HISTORY = 10;
@@ -123,56 +125,57 @@ watch(keyword, (val, oldVal) => {
 });
 
 function goBack() {
-  if (window.history.state?.back) {
-    router.back();
-  } else {
-    router.replace('/home');
-  }
+  if (window.history.state?.back) router.back();
+  else router.replace('/home');
 }
 
 onMounted(() => {
   loadHistory();
   const q = typeof route.query.q === 'string' ? route.query.q.trim() : '';
-  if (q) {
-    keyword.value = q;
-  }
+  if (q) keyword.value = q;
   void resetAndLoad();
 });
 </script>
 
 <template>
-  <div class="page">
-    <form action="/" @submit.prevent="doSearch()">
-      <van-search
-        v-model="keyword"
-        placeholder="搜索商品"
-        shape="round"
-        show-action
-        clearable
-        autofocus
-        @search="doSearch()"
-        @clear="onClear"
-        @cancel="goBack"
-      />
+  <div class="page-shop search-page">
+    <SmAppHeader title="搜索" @back="goBack" />
+
+    <form class="search-form" action="/" @submit.prevent="doSearch()">
+      <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-4-4" />
+        </svg>
+        <input
+          v-model="keyword"
+          type="search"
+          class="search-input"
+          placeholder="搜索商品"
+          autofocus
+          @keyup.enter="doSearch()"
+        />
+        <button v-if="keyword" type="button" class="clear-btn" @click="onClear">×</button>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm search-btn">搜索</button>
     </form>
 
     <template v-if="!keyword.trim()">
       <div v-if="history.length" class="section">
         <div class="section-header">
           <span>历史搜索</span>
-          <van-icon name="delete-o" @click="clearHistory" />
+          <button type="button" class="link-btn" @click="clearHistory">清空</button>
         </div>
         <div class="tags">
-          <van-tag
+          <button
             v-for="h in history"
             :key="h"
-            plain
-            type="primary"
-            size="medium"
+            type="button"
+            class="tag-chip"
             @click="onSelectHistory(h)"
           >
             {{ h }}
-          </van-tag>
+          </button>
         </div>
       </div>
 
@@ -181,16 +184,15 @@ onMounted(() => {
           <span>热门搜索</span>
         </div>
         <div class="tags">
-          <van-tag
+          <button
             v-for="h in HOT_KEYWORDS"
             :key="h"
-            plain
-            type="danger"
-            size="medium"
+            type="button"
+            class="tag-chip hot"
             @click="onSelectHot(h)"
           >
             {{ h }}
-          </van-tag>
+          </button>
         </div>
       </div>
     </template>
@@ -210,39 +212,98 @@ onMounted(() => {
         v-if="!loading && !products.length"
         :description="keyword.trim() ? '未找到相关商品' : '暂无商品'"
       />
-      <van-card
-        v-for="p in products"
-        v-else
-        :key="p.id"
-        :price="p.price.toFixed(2)"
-        :title="p.title"
-        :thumb="p.mainImage"
-        :desc="`可获贡献金 ${p.fundAmount}`"
-        @click="router.push(`/product/${p.id}`)"
-      />
+      <div v-else class="product-grid-2">
+        <SmProductCard
+          v-for="p in products"
+          :key="p.id"
+          :title="p.title"
+          :image="p.mainImage"
+          :price="p.price"
+          :fund-amount="p.fundAmount"
+          @click="router.push(`/product/${p.id}`)"
+        />
+      </div>
     </van-list>
   </div>
 </template>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  background: #f7f8fa;
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--container-gutter) var(--space-2);
 }
+
+.search-form .search-bar {
+  flex: 1;
+  margin: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: var(--text-base);
+  color: var(--fg);
+}
+
+.search-input::placeholder {
+  color: var(--meta);
+}
+
+.clear-btn {
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: var(--meta);
+  padding: 0 4px;
+}
+
+.search-btn {
+  flex-shrink: 0;
+}
+
 .section {
-  padding: 12px 16px;
+  padding: var(--space-3) var(--container-gutter);
 }
+
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  font-size: 14px;
-  color: #646566;
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
+}
+
+.tag-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.tag-chip.hot {
+  border-color: color-mix(in oklch, var(--accent) 30%, transparent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 </style>

@@ -238,4 +238,4 @@ docker compose --env-file deploy/.env.production -f docker-compose.prod.yml down
 | [docker-compose.prod.yml](../docker-compose.prod.yml) | 生产 Compose |
 | [apps/server/Dockerfile](../apps/server/Dockerfile) | 后端镜像 |
 | [deploy/nginx.conf](./nginx.conf) | Nginx 路由 |
-| [deploy/.env.production.example](./.env.production.example) | 环境变量模板 |
+| [deploy/.env.production.example](./.env.production.example) | 生产环境变量模板 |

@@ -20,7 +20,7 @@ export class UserEntity {
   @Column({ length: 50, nullable: true })
   nickname?: string;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'text', nullable: true })
   avatar?: string;
 
   @Column({ type: 'enum', enum: ['unknown', 'male', 'female'], default: 'unknown' })

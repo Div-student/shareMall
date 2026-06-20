@@ -3,10 +3,21 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
 import { storeToRefs } from 'pinia';
-import PriceChart from '@/components/PriceChart.vue';
+import SmActionBar from '@/components/shop/SmActionBar.vue';
+import SmAppHeader from '@/components/shop/SmAppHeader.vue';
+import SmPriceChart from '@/components/shop/SmPriceChart.vue';
 import { exchangeNft, fetchNftDetail, type NftDetail } from '@/api/nft';
 import { useFundStore } from '@/stores/fund';
 import { useUserStore } from '@/stores/user';
+
+const GRADIENTS = [
+  'linear-gradient(135deg,#2d1b4e,#c96442)',
+  'linear-gradient(135deg,#1a3a2a,#4a9d7a)',
+  'linear-gradient(135deg,#4a2040,#e87ec2)',
+  'linear-gradient(135deg,#5a3a1a,#d4a853)',
+  'linear-gradient(135deg,#1a2a4a,#5a8ac4)',
+  'linear-gradient(135deg,#3a0a2a,#f47a8a)',
+];
 
 const route = useRoute();
 const router = useRouter();
@@ -21,7 +32,13 @@ const nft = ref<NftDetail | null>(null);
 
 const dealRangeText = computed(() => {
   if (!nft.value) return '';
-  return `${nft.value.dealPriceMin} ~ ${nft.value.dealPriceMax}`;
+  return `¥${nft.value.dealPriceMin} ~ ¥${nft.value.dealPriceMax}`;
+});
+
+const stockTag = computed(() => {
+  if (!nft.value) return { label: '', class: '' };
+  if (nft.value.stock > 0) return { label: '可兑换', class: 'tag-success' };
+  return { label: '已售罄', class: 'tag-danger' };
 });
 
 const canExchange = computed(() => {
@@ -34,6 +51,20 @@ const limitText = computed(() => {
   if (!nft.value?.limitPerUser) return '不限';
   return `每人限兑 ${nft.value.limitPerUser} 份`;
 });
+
+function formatMoney(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function thumbGradient(id: number) {
+  return GRADIENTS[id % GRADIENTS.length];
+}
+
+function thumbLabel(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return '藏品';
+  return trimmed.slice(0, 2);
+}
 
 async function load() {
   loading.value = true;
@@ -84,87 +115,94 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="page">
-    <van-nav-bar title="藏品详情" left-arrow @click-left="$router.back()" />
+  <div class="page-shop collectible-shop-detail-page has-action-bar">
+    <SmAppHeader title="藏品详情" fixed @back="router.back()" />
 
     <van-loading v-if="loading" style="padding: 48px; text-align: center" />
 
-    <template v-else-if="nft">
-      <van-image width="100%" height="280" fit="cover" :src="nft.cover" />
-
-      <div class="chart-block">
-        <div class="chart-title">价格走势（近30日）</div>
-        <PriceChart :data="nft.priceHistory" />
-      </div>
-
-      <van-cell-group inset>
-        <van-cell title="名称" :value="nft.name" />
-        <van-cell title="发行方" :value="nft.publisher || '—'" />
-        <van-cell title="起始价格" :value="`${nft.startPrice} 贡献金`" />
-        <van-cell title="当前参考价" :value="`${nft.currentPrice} 贡献金`" />
-        <van-cell title="成交价格区间" :value="`${dealRangeText} 贡献金`" />
-        <van-cell title="库存" :value="`${nft.stock} / ${nft.totalSupply}`" />
-        <van-cell title="已兑" :value="String(nft.soldCount)" />
-        <van-cell title="限购" :value="limitText" />
-        <van-cell v-if="isLoggedIn" title="我的可用贡献金" :value="String(account?.availableFund ?? 0)" />
-      </van-cell-group>
-
-      <div v-if="nft.rightsDesc" class="rights">
-        <div class="title">权益说明</div>
-        <div class="content">{{ nft.rightsDesc }}</div>
-      </div>
-
-      <div class="footer">
-        <van-button
-          block
-          type="primary"
-          :loading="exchanging"
-          :disabled="nft.stock <= 0"
-          @click="onExchange"
+    <main v-else-if="nft" class="page-body shop-detail-body with-action-bar">
+      <section class="holding-hero">
+        <img
+          v-if="nft.cover"
+          :src="nft.cover"
+          :alt="nft.name"
+          class="holding-cover"
         >
-          {{ nft.stock <= 0 ? '已售罄' : `立即兑换（约 ${dealRangeText}）` }}
-        </van-button>
+        <div
+          v-else
+          class="ph-img holding-cover-placeholder"
+          :style="{ background: thumbGradient(nft.id) }"
+        >
+          {{ thumbLabel(nft.name) }}
+        </div>
+      </section>
+
+      <section class="holding-info">
+        <h1 class="holding-name">{{ nft.name }}</h1>
+        <div class="holding-id-row">
+          <span class="holding-id num">剩余 {{ nft.stock }}</span>
+          <span class="holding-total num">/ {{ nft.totalSupply }}</span>
+        </div>
+      </section>
+
+      <div class="info-card">
+        <div class="info-row">
+          <span class="row-label">当前参考价</span>
+          <span class="row-value price-accent num">¥{{ formatMoney(nft.currentPrice) }}</span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">成交区间</span>
+          <span class="row-value num">{{ dealRangeText }}</span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">状态</span>
+          <span class="row-value">
+            <span class="tag" :class="stockTag.class">{{ stockTag.label }}</span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">已兑换</span>
+          <span class="row-value num">{{ nft.soldCount }} 份</span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">限购</span>
+          <span class="row-value">{{ limitText }}</span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">发行方</span>
+          <span class="row-value">{{ nft.publisher || '—' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="row-label">起始价格</span>
+          <span class="row-value num">¥{{ formatMoney(nft.startPrice) }}</span>
+        </div>
+        <div v-if="isLoggedIn" class="info-row">
+          <span class="row-label">我的可用贡献金</span>
+          <span class="row-value num">¥{{ formatMoney(account?.availableFund ?? 0) }}</span>
+        </div>
       </div>
-    </template>
+
+      <SmPriceChart :data="nft.priceHistory" />
+
+      <div v-if="nft.rightsDesc" class="rights-card">
+        <div class="rights-title">权益说明</div>
+        <div class="rights-content">{{ nft.rightsDesc }}</div>
+      </div>
+
+      <div class="shop-detail-spacer" />
+    </main>
 
     <van-empty v-else description="藏品不存在或已下架" />
+
+    <SmActionBar v-if="nft">
+      <button
+        type="button"
+        class="btn btn-primary btn-block btn-lg shop-exchange-btn"
+        :disabled="nft.stock <= 0 || exchanging"
+        @click="onExchange"
+      >
+        {{ exchanging ? '兑换中...' : nft.stock <= 0 ? '已售罄' : `立即兑换（约 ${dealRangeText}）` }}
+      </button>
+    </SmActionBar>
   </div>
 </template>
-
-<style scoped>
-.chart-block {
-  margin: 12px 16px 0;
-}
-.chart-title {
-  font-weight: 600;
-  margin-bottom: 8px;
-  font-size: 15px;
-}
-.rights {
-  margin: 12px 16px;
-  padding: 12px;
-  background: #fff;
-  border-radius: 8px;
-}
-.title {
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.content {
-  color: #646566;
-  font-size: 14px;
-  line-height: 1.6;
-}
-.footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 12px 16px;
-  background: #fff;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
-}
-.page {
-  padding-bottom: 72px;
-}
-</style>

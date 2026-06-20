@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onActivated, onMounted, ref, watch } from 'vue';
+import { computed, onActivated, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { showLoadingToast, showToast, closeToast } from 'vant';
 import type { OrderPreview, UserAddress } from '@sharemall/shared';
@@ -7,6 +7,10 @@ import { fetchAddresses } from '@/api/address';
 import { createOrder, previewOrder, type OrderItemInput } from '@/api/order';
 import { fetchFundAccount } from '@/api/fund';
 import { fetchMyCoupons } from '@/api/operations';
+import SmAppHeader from '@/components/shop/SmAppHeader.vue';
+import SmActionBar from '@/components/shop/SmActionBar.vue';
+import SmAddressCard from '@/components/shop/SmAddressCard.vue';
+import SmPriceBreakdown from '@/components/shop/SmPriceBreakdown.vue';
 
 const CHECKOUT_ADDRESS_KEY = 'checkoutAddressId';
 
@@ -20,7 +24,10 @@ const router = useRouter();
 const loading = ref(true);
 const submitting = ref(false);
 const useFund = ref(false);
+const fundAmountInput = ref(0);
+const fundInputError = ref(false);
 const showAddressPicker = ref(false);
+const couponExpanded = ref(false);
 const items = ref<CheckoutItem[]>([]);
 const addresses = ref<UserAddress[]>([]);
 const address = ref<UserAddress | null>(null);
@@ -30,6 +37,15 @@ const myCoupons = ref<Array<{ id: number; coupon: { name: string; minAmount: num
 const selectedCouponId = ref<number | null>(null);
 const showCouponPicker = ref(false);
 const isFirstActivation = ref(true);
+
+const maxFundDeduct = computed(() => {
+  const cap = preview.value?.fundDeductMax ?? availableFund.value;
+  return Math.min(availableFund.value, cap);
+});
+
+const selectedCoupon = computed(() =>
+  myCoupons.value.find((c) => c.id === selectedCouponId.value)?.coupon ?? null,
+);
 
 function pickAddress(list: UserAddress[]) {
   const savedId = sessionStorage.getItem(CHECKOUT_ADDRESS_KEY);
@@ -43,12 +59,28 @@ function pickAddress(list: UserAddress[]) {
 
 async function loadPreview() {
   if (!address.value || !items.value.length) return;
+  if (useFund.value && fundAmountInput.value > maxFundDeduct.value) {
+    fundInputError.value = true;
+    return;
+  }
+  fundInputError.value = false;
   preview.value = await previewOrder({
     items: items.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
     addressId: address.value.id,
     useFund: useFund.value,
+    fundAmount: useFund.value ? fundAmountInput.value : undefined,
     couponId: selectedCouponId.value ?? undefined,
   });
+  if (useFund.value && fundAmountInput.value === 0 && preview.value.fundDeductMax > 0) {
+    fundAmountInput.value = Math.min(availableFund.value, preview.value.fundDeductMax);
+    preview.value = await previewOrder({
+      items: items.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
+      addressId: address.value!.id,
+      useFund: true,
+      fundAmount: fundAmountInput.value,
+      couponId: selectedCouponId.value ?? undefined,
+    });
+  }
 }
 
 async function loadAddresses(keepCurrent = false) {
@@ -89,6 +121,20 @@ function goManageAddress() {
   router.push({ path: '/mine/address', query: { select: '1' } });
 }
 
+function applyMaxFund() {
+  fundAmountInput.value = maxFundDeduct.value;
+  void loadPreview();
+}
+
+function onFundInputBlur() {
+  if (fundAmountInput.value > maxFundDeduct.value) {
+    fundInputError.value = true;
+    return;
+  }
+  fundInputError.value = false;
+  void loadPreview();
+}
+
 async function init() {
   loading.value = true;
   try {
@@ -120,7 +166,11 @@ async function init() {
   }
 }
 
-watch(useFund, () => {
+watch(useFund, (val) => {
+  if (!val) {
+    fundAmountInput.value = 0;
+    fundInputError.value = false;
+  }
   void loadPreview();
 });
 
@@ -148,7 +198,7 @@ async function submitOrder() {
       items: items.value.map((i) => ({ skuId: i.skuId, quantity: i.quantity })),
       addressId: address.value.id,
       useFund: useFund.value,
-      fundAmount: preview.value?.fundDeductAmount,
+      fundAmount: useFund.value ? fundAmountInput.value : undefined,
       couponId: selectedCouponId.value ?? undefined,
     });
     sessionStorage.removeItem('checkoutItems');
@@ -177,61 +227,109 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="page">
-    <van-nav-bar title="确认订单" left-arrow @click-left="$router.back()" />
+  <div class="page-shop has-action-bar">
+    <SmAppHeader title="确认订单" @back="router.back()" />
 
     <van-loading v-if="loading" style="padding: 48px; text-align: center" />
     <template v-else>
-      <van-cell
-        title="收货地址"
-        :label="address ? `${address.receiver} ${address.phone}` : ''"
-        :value="address ? address.fullAddress : '请选择'"
-        is-link
-        @click="openAddressPicker"
+      <SmAddressCard :address="address" @click="openAddressPicker" />
+
+      <div class="card-block">
+        <div
+          v-for="(item, idx) in items"
+          :key="idx"
+          class="checkout-product-row"
+        >
+          <img :src="item.mainImage" class="thumb" alt="" />
+          <div class="info">
+            <div class="title">{{ item.title ?? '商品' }}</div>
+            <div class="meta">x{{ item.quantity }}</div>
+            <div class="price">¥{{ (item.price ?? 0).toFixed(2) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <h4>贡献金抵扣</h4>
+            <p>可用余额 {{ availableFund }}</p>
+          </div>
+          <button
+            type="button"
+            class="toggle-switch"
+            :class="{ active: useFund }"
+            :disabled="availableFund <= 0"
+            @click="useFund = !useFund"
+          />
+        </div>
+        <div v-if="useFund" class="fund-detail">
+          <div class="fund-input-row">
+            <input
+              v-model.number="fundAmountInput"
+              type="number"
+              class="fund-input"
+              :class="{ error: fundInputError }"
+              placeholder="输入抵扣金额"
+              @blur="onFundInputBlur"
+            />
+            <button type="button" class="btn btn-outline btn-sm" @click="applyMaxFund">最大</button>
+          </div>
+          <p v-if="fundInputError" style="font-size: var(--text-xs); color: var(--danger); margin-top: 4px">
+            超出可用抵扣上限 ¥{{ maxFundDeduct.toFixed(2) }}
+          </p>
+        </div>
+      </div>
+
+      <div class="card-block coupon-row" @click="openCouponPicker">
+        <div class="row-between" style="display: flex; justify-content: space-between; align-items: center">
+          <span>优惠券</span>
+          <span style="color: var(--muted); font-size: var(--text-sm)">
+            {{ selectedCoupon?.name ?? (myCoupons.length ? '选择优惠券' : '暂无可用') }} ›
+          </span>
+        </div>
+        <div
+          v-if="selectedCoupon"
+          class="coupon-expand"
+          @click.stop="couponExpanded = !couponExpanded"
+        >
+          <span>{{ selectedCoupon.name }}（满{{ selectedCoupon.minAmount }}可用）</span>
+          <button type="button" class="link-btn" @click.stop="selectCoupon(null)">不使用</button>
+        </div>
+      </div>
+
+      <SmPriceBreakdown
+        v-if="preview"
+        :total-amount="preview.totalAmount"
+        :fund-deduct-amount="preview.fundDeductAmount"
+        :coupon-amount="preview.couponAmount"
+        :freight="preview.freight"
+        :pay-amount="preview.payAmount"
       />
 
-      <van-card
-        v-for="(item, idx) in items"
-        :key="idx"
-        :num="item.quantity"
-        :price="item.price?.toFixed(2) ?? '0.00'"
-        :title="item.title ?? '商品'"
-        :thumb="item.mainImage"
-      />
+      <div v-if="preview" class="preview-card">
+        <p style="font-size: var(--text-sm); color: var(--muted)">确认收货后可获贡献金</p>
+        <p class="preview-amount">{{ preview.accruedFund }}</p>
+        <p style="font-size: var(--text-xs); color: var(--muted); margin-top: 4px">按实付金额比例计算，收货后入账</p>
+      </div>
 
-      <van-cell-group inset>
-        <van-cell title="商品总额" :value="`¥${preview?.totalAmount.toFixed(2) ?? '0.00'}`" />
-        <van-cell title="使用可用贡献金抵扣" :label="`可用 ${availableFund}`">
-          <template #value>
-            <van-switch v-model="useFund" size="20px" :disabled="availableFund <= 0" />
-          </template>
-        </van-cell>
-        <van-cell
-          v-if="useFund"
-          title="贡献金抵扣"
-          :value="`-¥${preview?.fundDeductAmount.toFixed(2) ?? '0.00'}`"
-        />
-        <van-cell
-          title="优惠券"
-          :value="selectedCouponId ? myCoupons.find((c) => c.id === selectedCouponId)?.coupon?.name ?? '已选' : (myCoupons.length ? '选择优惠券' : '暂无可用')"
-          is-link
-          @click="openCouponPicker"
-        />
-        <van-cell
-          v-if="(preview?.couponAmount ?? 0) > 0"
-          title="优惠券抵扣"
-          :value="`-¥${preview?.couponAmount?.toFixed(2)}`"
-        />
-        <van-cell title="运费" :value="`¥${preview?.freight.toFixed(2) ?? '0.00'}`" />
-        <van-cell title="预计可获贡献金（确认收货后到账）" :value="String(preview?.accruedFund ?? 0)" />
-      </van-cell-group>
-
-      <van-submit-bar
-        :price="Math.round((preview?.payAmount ?? 0) * 100)"
-        button-text="提交订单"
-        :loading="submitting"
-        @submit="submitOrder"
-      />
+      <SmActionBar>
+        <div style="flex: 1">
+          <div style="font-size: var(--text-sm); color: var(--muted)">合计</div>
+          <div style="font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 600; color: var(--accent)">
+            ¥{{ (preview?.payAmount ?? 0).toFixed(2) }}
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary btn-lg"
+          style="min-width: 140px"
+          :disabled="submitting"
+          @click="submitOrder"
+        >
+          {{ submitting ? '提交中...' : '提交订单' }}
+        </button>
+      </SmActionBar>
     </template>
 
     <van-popup v-model:show="showAddressPicker" position="bottom" round>
@@ -247,84 +345,132 @@ onActivated(() => {
           >
             <div class="addr-head">
               <span class="name">{{ addr.receiver }} {{ addr.phone }}</span>
-              <van-tag v-if="addr.isDefault" type="primary" plain>默认</van-tag>
+              <span v-if="addr.isDefault" class="tag">默认</span>
             </div>
             <div class="addr-detail">{{ addr.fullAddress }}</div>
           </div>
         </div>
-        <div class="picker-footer">
-          <van-button block plain type="primary" @click="goManageAddress">新增 / 管理地址</van-button>
-        </div>
+        <button type="button" class="btn btn-outline btn-block" @click="goManageAddress">新增 / 管理地址</button>
       </div>
     </van-popup>
 
     <van-popup v-model:show="showCouponPicker" position="bottom" round>
-      <div style="padding: 16px">
-        <div style="text-align: center; font-weight: 600; margin-bottom: 12px">选择优惠券</div>
-        <van-cell title="不使用优惠券" is-link @click="selectCoupon(null)" />
-        <van-cell
-          v-for="c in myCoupons"
-          :key="c.id"
-          :title="c.coupon?.name ?? '优惠券'"
-          :label="`满${c.coupon?.minAmount ?? 0}可用`"
-          is-link
-          @click="selectCoupon(c.id)"
-        />
+      <div class="picker">
+        <div class="picker-title">选择优惠券</div>
+        <div class="addr-list">
+          <div class="addr-item" @click="selectCoupon(null)">不使用优惠券</div>
+          <div
+            v-for="c in myCoupons"
+            :key="c.id"
+            class="addr-item"
+            :class="{ active: selectedCouponId === c.id }"
+            @click="selectCoupon(c.id)"
+          >
+            <div class="name">{{ c.coupon?.name ?? '优惠券' }}</div>
+            <div class="addr-detail">满{{ c.coupon?.minAmount ?? 0 }}可用</div>
+          </div>
+        </div>
       </div>
     </van-popup>
   </div>
 </template>
 
 <style scoped>
-.page {
-  padding-bottom: 60px;
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+
+.toggle-info h4 {
+  font-size: var(--text-base);
+  font-weight: 500;
+  margin: 0;
+}
+
+.toggle-info p {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.fund-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: var(--font-mono);
+}
+
+.fund-input.error {
+  border-color: var(--danger);
+}
+
+.coupon-row {
+  cursor: pointer;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  margin-left: var(--space-2);
+}
+
 .picker {
+  padding: var(--space-4);
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
-  padding: 16px;
-  box-sizing: border-box;
+  gap: var(--space-3);
 }
+
 .picker-title {
-  flex-shrink: 0;
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 12px;
   text-align: center;
+  font-weight: 600;
 }
+
 .addr-list {
-  flex: 1;
-  min-height: 0;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  flex: 1;
 }
-.picker-footer {
-  flex-shrink: 0;
-  padding-top: 12px;
-}
+
 .addr-item {
-  padding: 12px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  border: 1px solid #ebedf0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
 }
+
 .addr-item.active {
-  border-color: #1989fa;
-  background: #f0f9ff;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
+
 .addr-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
 }
+
 .name {
   font-weight: 600;
 }
+
+.tag {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
 .addr-detail {
-  color: #646566;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin-top: 4px;
 }
 </style>

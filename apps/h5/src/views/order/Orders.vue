@@ -90,8 +90,19 @@ async function onReceive(order: OrderListItem, event: Event) {
   }
 }
 
+const ORDERS_TAB_KEY = 'ordersTab';
+
 watch(active, loadOrders);
-onActivated(refresh);
+
+onActivated(async () => {
+  const tab = sessionStorage.getItem(ORDERS_TAB_KEY);
+  if (tab) {
+    const idx = tabs.findIndex((t) => t.status === tab);
+    if (idx >= 0) active.value = idx;
+    sessionStorage.removeItem(ORDERS_TAB_KEY);
+  }
+  await refresh();
+});
 </script>
 
 <template>

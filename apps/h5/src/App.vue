@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
+import SmTabBar from '@/components/shop/SmTabBar.vue';
 import { useCartStore } from '@/stores/cart';
 import { useUserStore } from '@/stores/user';
 
@@ -37,18 +38,13 @@ watch(
       </keep-alive>
     </router-view>
 
-    <van-tabbar v-if="showTabbar" route>
-      <van-tabbar-item to="/home" icon="shop-o">首页</van-tabbar-item>
-      <van-tabbar-item to="/fund" icon="gold-coin-o">贡献金</van-tabbar-item>
-      <van-tabbar-item to="/cart" icon="cart-o" :badge="cartBadge">购物车</van-tabbar-item>
-      <van-tabbar-item to="/mine" icon="user-o">我的</van-tabbar-item>
-    </van-tabbar>
+    <SmTabBar v-if="showTabbar" :cart-badge="cartBadge" />
   </div>
 </template>
 
 <style scoped>
 .app-container {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: var(--bg);
 }
 </style>

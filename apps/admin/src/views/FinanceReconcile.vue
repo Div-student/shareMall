@@ -10,10 +10,14 @@ const query = reactive({
   dateRange: [] as string[],
 });
 
-const statusMap = {
-  matched: { label: '一致', type: 'success' as const },
-  diff: { label: '差异', type: 'danger' as const },
+const statusMap: Record<ReconcileItem['status'], { label: string; type: 'success' | 'danger' }> = {
+  matched: { label: '一致', type: 'success' },
+  diff: { label: '差异', type: 'danger' },
 };
+
+function statusMeta(status: ReconcileItem['status']) {
+  return statusMap[status];
+}
 
 async function loadData() {
   loading.value = true;
@@ -75,7 +79,7 @@ onMounted(loadData);
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusMap[row.status].type">{{ statusMap[row.status].label }}</el-tag>
+          <el-tag :type="statusMeta(row.status).type">{{ statusMeta(row.status).label }}</el-tag>
         </template>
       </el-table-column>
     </el-table>

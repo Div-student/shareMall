@@ -4,7 +4,9 @@ import Vant from 'vant';
 import 'vant/lib/index.css';
 import App from './App.vue';
 import { router } from './router';
+import './styles/sharemall-tokens.css';
 import './styles/global.css';
+import './styles/sharemall-shop.css';
 
 const app = createApp(App);
 app.use(createPinia());

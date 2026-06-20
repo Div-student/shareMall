@@ -11,14 +11,21 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
-  color: #323233;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif);
+  color: var(--fg, #323233);
+  background: var(--bg, #f7f8fa);
   -webkit-font-smoothing: antialiased;
 }
 
 .page {
   min-height: 100vh;
   padding-bottom: 50px;
+}
+
+.page-shop {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .placeholder {

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { showToast } from 'vant';
 import type { CategoryTreeItem, ProductListItem, ProductSort } from '@sharemall/shared';
 import { fetchCategories, fetchProducts } from '@/api/product';
+import SmProductCard from '@/components/shop/SmProductCard.vue';
 
 const PAGE_SIZE = 10;
 
@@ -20,7 +22,9 @@ const categories = ref<CategoryTreeItem[]>([]);
 const activeRootIndex = ref(0);
 const activeSubIndex = ref(0);
 const sort = ref<ProductSort>('default');
+const sortOpen = ref(false);
 const products = ref<ProductListItem[]>([]);
+const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
 const finished = ref(false);
@@ -31,6 +35,7 @@ const subTabs = computed(() => {
   const children = activeRoot.value?.children ?? [];
   return [{ id: 0, name: '全部' }, ...children];
 });
+const sortLabel = computed(() => SORT_OPTIONS.find((o) => o.value === sort.value)?.text ?? '综合排序');
 
 function resolveRootIndex() {
   const id = Number(route.query.id);
@@ -72,6 +77,7 @@ async function resetAndLoad() {
   page.value = 1;
   finished.value = false;
   products.value = [];
+  total.value = 0;
   loading.value = true;
   try {
     const params = buildQueryParams();
@@ -79,6 +85,7 @@ async function resetAndLoad() {
     params.page = 1;
     const data = await fetchProducts(params);
     products.value = data.list;
+    total.value = data.total;
     finished.value = products.value.length >= data.total;
     page.value = 2;
   } finally {
@@ -87,16 +94,14 @@ async function resetAndLoad() {
 }
 
 async function onLoadMore() {
-  if (finished.value || !activeRoot.value) {
-    loading.value = false;
-    return;
-  }
+  if (loading.value || finished.value || !activeRoot.value) return;
   loading.value = true;
   try {
     const params = buildQueryParams();
     if (!params) return;
     const data = await fetchProducts(params);
     products.value.push(...data.list);
+    total.value = data.total;
     finished.value = products.value.length >= data.total;
     page.value += 1;
   } finally {
@@ -104,20 +109,44 @@ async function onLoadMore() {
   }
 }
 
+function onMainScroll(e: Event) {
+  if (loading.value || finished.value) return;
+  const el = e.target as HTMLElement;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120) {
+    void onLoadMore();
+  }
+}
+
 function onRootChange(index: number) {
+  if (activeRootIndex.value === index) return;
   activeRootIndex.value = index;
   activeSubIndex.value = 0;
+  sortOpen.value = false;
+  const name = categories.value[index]?.name;
+  if (name) showToast(`已切换至「${name}」`);
   void resetAndLoad();
 }
 
 function onSubChange(index: number) {
+  if (activeSubIndex.value === index) return;
   activeSubIndex.value = index;
+  sortOpen.value = false;
   void resetAndLoad();
 }
 
-watch(sort, () => {
-  if (!initLoading.value) void resetAndLoad();
-});
+function toggleSort() {
+  sortOpen.value = !sortOpen.value;
+}
+
+function selectSort(value: ProductSort, label: string) {
+  const changed = sort.value !== value;
+  sort.value = value;
+  sortOpen.value = false;
+  if (changed) {
+    showToast(`已切换排序：${label}`);
+    void resetAndLoad();
+  }
+}
 
 watch(
   () => route.query.id,
@@ -140,69 +169,90 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="page">
-    <van-nav-bar title="商品分类" left-arrow @click-left="router.back()" />
+  <div class="page-shop has-tabbar category-page">
+    <header class="category-header">
+      <h1>商品分类</h1>
+    </header>
 
-    <van-loading v-if="initLoading" class="status" />
+    <van-loading v-if="initLoading" class="category-status" />
 
-    <div v-else-if="!categories.length" class="status">
+    <div v-else-if="!categories.length" class="category-status">
       <van-empty description="暂无分类" />
     </div>
 
-    <div v-else class="layout">
-      <van-sidebar v-model="activeRootIndex" @change="onRootChange">
-        <van-sidebar-item v-for="c in categories" :key="c.id" :title="c.name" />
-      </van-sidebar>
-
-      <div class="main">
-        <van-tabs v-if="subTabs.length > 1" v-model:active="activeSubIndex" shrink @change="onSubChange">
-          <van-tab v-for="(tab, index) in subTabs" :key="tab.id" :title="tab.name" :name="index" />
-        </van-tabs>
-
-        <van-dropdown-menu>
-          <van-dropdown-item v-model="sort" :options="SORT_OPTIONS" />
-        </van-dropdown-menu>
-
-        <van-list
-          v-model:loading="loading"
-          :finished="finished"
-          :immediate-check="false"
-          finished-text="没有更多了"
-          @load="onLoadMore"
+    <div v-else class="category-layout">
+      <aside class="category-sidebar">
+        <button
+          v-for="(c, index) in categories"
+          :key="c.id"
+          type="button"
+          class="side-item"
+          :class="{ active: activeRootIndex === index }"
+          @click="onRootChange(index)"
         >
-          <van-empty v-if="!loading && !products.length" description="该分类暂无商品" />
-          <van-card
+          {{ c.name }}
+        </button>
+      </aside>
+
+      <main class="category-main" @scroll="onMainScroll">
+        <div class="sub-tabs">
+          <button
+            v-for="(tab, index) in subTabs"
+            :key="tab.id"
+            type="button"
+            class="sub-tab"
+            :class="{ active: activeSubIndex === index }"
+            @click="onSubChange(index)"
+          >
+            {{ tab.name }}
+          </button>
+        </div>
+
+        <div class="sort-bar">
+          <button type="button" class="sort-trigger" :class="{ open: sortOpen }" @click="toggleSort">
+            <span>{{ sortLabel }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          <span class="result-count">共 {{ total }} 件</span>
+        </div>
+
+        <div class="sort-menu" :class="{ open: sortOpen }">
+          <button
+            v-for="opt in SORT_OPTIONS"
+            :key="opt.value"
+            type="button"
+            class="sort-option"
+            :class="{ active: sort === opt.value }"
+            @click="selectSort(opt.value, opt.text)"
+          >
+            {{ opt.text }}
+          </button>
+        </div>
+
+        <van-loading v-if="loading && !products.length" class="category-status" />
+
+        <div v-else-if="!products.length" class="category-empty-products">
+          <van-empty description="该分类暂无商品" />
+        </div>
+
+        <div v-else class="product-grid-2 category-product-grid">
+          <SmProductCard
             v-for="p in products"
-            v-else
             :key="p.id"
-            :price="p.price.toFixed(2)"
             :title="p.title"
-            :thumb="p.mainImage"
-            :desc="`可获贡献金 ${p.fundAmount}`"
+            :image="p.mainImage"
+            :price="p.price"
+            :fund-amount="p.fundAmount"
+            :sales="p.sales"
             @click="router.push(`/product/${p.id}`)"
           />
-        </van-list>
-      </div>
+        </div>
+
+        <div v-if="finished && products.length" class="load-hint">没有更多了</div>
+        <div v-else-if="loading && products.length" class="load-hint">加载中...</div>
+      </main>
     </div>
   </div>
 </template>
-
-<style scoped>
-.page {
-  min-height: 100vh;
-  background: #f7f8fa;
-}
-.status {
-  padding: 48px 24px;
-  text-align: center;
-}
-.layout {
-  display: flex;
-  height: calc(100vh - 46px);
-}
-.main {
-  flex: 1;
-  overflow-y: auto;
-  background: #fff;
-}
-</style>

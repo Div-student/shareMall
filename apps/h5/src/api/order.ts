@@ -11,6 +11,7 @@ export function previewOrder(data: {
   addressId: number;
   useFund?: boolean;
   fundAmount?: number;
+  couponId?: number;
 }) {
   return request.post<unknown, OrderPreview>('/orders/preview', data);
 }
@@ -20,6 +21,7 @@ export function createOrder(data: {
   addressId: number;
   useFund?: boolean;
   fundAmount?: number;
+  couponId?: number;
 }) {
   return request.post<unknown, { orderNo: string; orderId: number }>('/orders', data);
 }

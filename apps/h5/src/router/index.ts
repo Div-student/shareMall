@@ -48,6 +48,7 @@ const routes: RouteRecordRaw[] = [
     path: '/category',
     name: 'Category',
     component: () => import('@/views/category/Category.vue'),
+    meta: { tabbar: true },
   },
   {
     path: '/product/:id',
@@ -104,7 +105,7 @@ const routes: RouteRecordRaw[] = [
     path: '/fund',
     name: 'Fund',
     component: () => import('@/views/fund/Fund.vue'),
-    meta: { tabbar: true, requiresAuth: true },
+    meta: { requiresAuth: true },
   },
   {
     path: '/fund/checkin',
@@ -189,6 +190,12 @@ const routes: RouteRecordRaw[] = [
     path: '/mine/profile',
     name: 'Profile',
     component: () => import('@/views/mine/Profile.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/mine/profile/edit',
+    name: 'ProfileEdit',
+    component: () => import('@/views/mine/ProfileEdit.vue'),
     meta: { requiresAuth: true },
   },
   {

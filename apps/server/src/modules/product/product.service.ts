@@ -38,7 +38,9 @@ export class ProductService implements OnModuleInit {
     const count = await this.products.count();
     if (count === 0) {
       await this.seedSampleData();
+      return;
     }
+    await this.backfillProductGalleries();
   }
 
   async getHome() {
@@ -110,7 +112,7 @@ export class ProductService implements OnModuleInit {
       id: Number(product.id),
       title: product.title,
       mainImage: product.mainImage,
-      images: product.images?.length ? product.images : [product.mainImage],
+      images: this.normalizeProductImages(product.mainImage, product.images),
       detailHtml: product.detailHtml ?? '',
       price,
       marketPrice: product.marketPrice ? Number(product.marketPrice) : null,
@@ -436,7 +438,7 @@ export class ProductService implements OnModuleInit {
       {
         title: '无线蓝牙耳机 Pro',
         categoryId: categories[0].id,
-        mainImage: 'https://picsum.photos/seed/p1/400',
+        imageSeed: 'p1',
         price: '299.00',
         fundRatio: '0.15',
         sales: 128,
@@ -444,7 +446,7 @@ export class ProductService implements OnModuleInit {
       {
         title: '保湿护肤套装',
         categoryId: categories[1].id,
-        mainImage: 'https://picsum.photos/seed/p2/400',
+        imageSeed: 'p2',
         price: '199.00',
         fundRatio: '0.12',
         sales: 256,
@@ -452,14 +454,14 @@ export class ProductService implements OnModuleInit {
       {
         title: '北欧简约台灯',
         categoryId: categories[2].id,
-        mainImage: 'https://picsum.photos/seed/p3/400',
+        imageSeed: 'p3',
         price: '89.00',
         sales: 89,
       },
       {
         title: '有机坚果礼盒',
         categoryId: categories[3].id,
-        mainImage: 'https://picsum.photos/seed/p4/400',
+        imageSeed: 'p4',
         price: '128.00',
         fundRatio: '0.08',
         sales: 512,
@@ -467,10 +469,16 @@ export class ProductService implements OnModuleInit {
     ];
 
     for (const item of samples) {
+      const images = this.buildGalleryImages(item.imageSeed);
       const product = await this.products.save(
         this.products.create({
-          ...item,
-          images: [item.mainImage],
+          title: item.title,
+          categoryId: item.categoryId,
+          mainImage: images[0],
+          images,
+          price: item.price,
+          fundRatio: item.fundRatio,
+          sales: item.sales,
           detailHtml: `<p>${item.title} — 优质好物，下单即享贡献金回馈。</p>`,
           marketPrice: String(Number(item.price) + 50),
           status: 'on_sale',
@@ -486,6 +494,37 @@ export class ProductService implements OnModuleInit {
           stock: 999,
         }),
       );
+    }
+  }
+
+  /** 生成 4 张轮播图（与设计稿一致） */
+  private buildGalleryImages(seed: string): string[] {
+    return [1, 2, 3, 4].map((i) => `https://picsum.photos/seed/${seed}-${i}/400`);
+  }
+
+  /** 主图置顶并去重 */
+  private normalizeProductImages(mainImage: string, images?: string[] | null): string[] {
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    for (const url of [mainImage, ...(images ?? [])]) {
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        merged.push(url);
+      }
+    }
+    return merged.length ? merged : mainImage ? [mainImage] : [];
+  }
+
+  /** 为仅有单图的示例商品补全轮播图 */
+  private async backfillProductGalleries() {
+    const list = await this.products.find();
+    for (const product of list) {
+      if ((product.images?.length ?? 0) > 1) continue;
+      const match = product.mainImage.match(/seed\/([^/]+)/);
+      if (!match) continue;
+      const baseSeed = match[1].replace(/-\d+$/, '');
+      product.images = this.buildGalleryImages(baseSeed);
+      await this.products.save(product);
     }
   }
 }

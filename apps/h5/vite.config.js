@@ -16,7 +16,7 @@ export default defineConfig({
                 changeOrigin: true,
             },
         },
-        allowedHosts:['ja59d26f.natappfree.cc']
+        allowedHosts:['jb44a627.natappfree.cc']
     },
 });
 //# sourceMappingURL=vite.config.js.map

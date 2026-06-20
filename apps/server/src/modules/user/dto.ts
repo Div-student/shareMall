@@ -78,7 +78,7 @@ export class UpdateProfileDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @Length(0, 255)
+  @Length(0, 65535)
   avatar?: string;
 
   @ApiPropertyOptional({ enum: ['unknown', 'male', 'female'] })

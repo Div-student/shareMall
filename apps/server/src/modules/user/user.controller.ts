@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../common/auth/jwt-auth.guard';
@@ -40,6 +40,28 @@ export class UserController {
   @ApiOperation({ summary: '新增收货地址' })
   createAddress(@CurrentUser('sub') userId: string, @Body() dto: CreateAddressDto) {
     return this.addressService.create(userId, dto);
+  }
+
+  @Put('user/address/:id')
+  @ApiOperation({ summary: '更新收货地址' })
+  updateAddress(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateAddressDto,
+  ) {
+    return this.addressService.update(userId, id, dto);
+  }
+
+  @Put('user/address/:id/default')
+  @ApiOperation({ summary: '设为默认地址' })
+  setDefaultAddress(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return this.addressService.setDefault(userId, id);
+  }
+
+  @Delete('user/address/:id')
+  @ApiOperation({ summary: '删除收货地址' })
+  deleteAddress(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return this.addressService.remove(userId, id);
   }
 
   @Get('user/kyc')

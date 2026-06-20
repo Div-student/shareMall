@@ -1,14 +1,27 @@
 import request from '@/api/request';
 
+export interface ClaimableCoupon {
+  id: number;
+  name: string;
+  type: 'fixed' | 'discount';
+  value: number;
+  minAmount: number;
+  endAt: string | null;
+  claimed: boolean;
+}
+
 export interface UserCouponItem {
   id: number;
-  status: string;
+  status: 'unused' | 'used' | 'expired' | string;
+  claimedAt?: string;
+  usedAt?: string | null;
   coupon: {
     id: number;
     name: string;
     type: 'fixed' | 'discount';
     value: number;
     minAmount: number;
+    endAt?: string | null;
   } | null;
 }
 
@@ -21,9 +34,7 @@ export interface ServiceConfig {
 }
 
 export function fetchClaimableCoupons() {
-  return request.get<unknown, { list: Array<{ id: number; name: string; claimed: boolean }> }>(
-    '/coupons/claimable',
-  );
+  return request.get<unknown, { list: ClaimableCoupon[] }>('/coupons/claimable');
 }
 
 export function fetchMyCoupons() {
