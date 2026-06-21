@@ -218,18 +218,97 @@ docker compose --env-file deploy/.env.production -f docker-compose.prod.yml down
 - [ ] HTTPS 已启用
 - [ ] 短信/OSS/支付等外部密钥已按需填入环境变量
 
-## 七、CI/CD（可选）
+## 七、CI/CD（GitHub Actions 自动部署）
 
-仓库已提供 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)，在 GitHub Secrets 中配置：
+推送 `main` 分支后，GitHub Actions 会：在云端构建前端与 shared → SCP 上传到 ECS → SSH 执行 `docker compose up -d --build`。
 
-| Secret | 说明 |
+Workflow 文件：[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+
+### 1. ECS 一次性准备
+
+**（1）创建生产环境变量（必做，不会随 CI 上传）**
+
+```bash
+cd /opt/shareMall   # 按实际路径
+cp deploy/.env.production.example deploy/.env.production
+# 编辑并至少修改 MYSQL_ROOT_PASSWORD、DB_PASSWORD（两者一致）、JWT_SECRET
+vi deploy/.env.production
+```
+
+若 MySQL 已在运行，密码需与现有一致：
+
+```bash
+docker exec sharemall-mysql printenv MYSQL_ROOT_PASSWORD
+```
+
+**（2）部署用户具备 Docker 权限**
+
+```bash
+sudo usermod -aG docker $USER
+# 重新登录后 docker ps 应正常
+```
+
+**（3）生成 GitHub Actions 专用 SSH 密钥（本机执行）**
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/sharemall_deploy -N ""
+ssh-copy-id -i ~/.ssh/sharemall_deploy.pub 你的用户@ECS公网IP
+```
+
+验证：
+
+```bash
+ssh -i ~/.ssh/sharemall_deploy 你的用户@ECS公网IP "cd /opt/shareMall && docker compose --env-file deploy/.env.production -f docker-compose.prod.yml ps"
+```
+
+**（4）安全组**
+
+- 入方向开放 **22**（GitHub Actions 源 IP 不固定，内测通常需对 `0.0.0.0/0` 开放；生产建议改用 self-hosted runner 或堡垒机）
+- **80** / **443** 保持开放
+
+### 2. GitHub 仓库 Secrets
+
+路径：**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | 说明 | 示例 |
+| --- | --- | --- |
+| `DEPLOY_HOST` | ECS 公网 IP 或域名 | `47.xxx.xxx.xxx` |
+| `DEPLOY_USER` | SSH 用户名 | `root` |
+| `DEPLOY_KEY` | 部署私钥**全文**（`~/.ssh/sharemall_deploy` 内容，含 BEGIN/END） | — |
+| `DEPLOY_PATH` | 服务器项目根目录（无末尾 `/`） | `/opt/shareMall` |
+
+另确认 **Settings → Actions → General** 已允许 Actions 运行。
+
+### 3. 触发部署
+
+| 方式 | 操作 |
 | --- | --- |
-| `DEPLOY_HOST` | ECS 公网 IP 或域名 |
-| `DEPLOY_USER` | SSH 用户名 |
-| `DEPLOY_KEY` | SSH 私钥 |
-| `DEPLOY_PATH` | 服务器上的项目路径，如 `/opt/shareMall` |
+| 自动 | 合并/推送到 `main` |
+| 手动 | GitHub → Actions → **Deploy to ECS** → **Run workflow** |
 
-推送 `main` 分支或手动触发 workflow 即可自动构建并部署。
+成功后在 Actions 日志中应看到 SCP、SSH、`docker compose up -d --build` 均为绿色。
+
+### 4. CI 会上传的内容
+
+- 构建产物：`apps/h5/dist`、`apps/admin/dist`
+- 后端源码与 Docker 构建：`apps/server`、`tsconfig.base.json`
+- 编排与配置：`docker-compose.prod.yml`、`deploy/`（nginx 等）、`packages/`、根目录 lock/workspace 文件
+
+**不会上传**：`deploy/.env.production`（含密钥，仅保留在 ECS 上）。
+
+### 5. 数据库迁移
+
+CI **不会**自动执行增量 SQL。若有新迁移文件（如 `008_xxx.sql`），部署后需在 ECS 手动执行，见上文「6. 数据库迁移」。
+
+### 6. 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| `ls deploy/.env.production` 不存在 | 按本节步骤 1 在 ECS 上 `cp` 模板并编辑 |
+| SSH 连接失败 | 检查安全组 22、公钥是否在 `~/.ssh/authorized_keys` |
+| `docker compose` 权限 denied | 用户加入 `docker` 组并重新登录 |
+| 仅前端更新、后端仍是旧版 | 确认 workflow 已包含 `apps/server` 与 `tsconfig.base.json`（当前版本已包含） |
+| 部署后 API 报错缺表 | 手动补跑 `apps/server/migrations/` 下增量脚本 |
 
 ## 相关文件
 
